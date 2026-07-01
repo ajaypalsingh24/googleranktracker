@@ -143,20 +143,28 @@ def create_project(
 
 
 @app.post("/projects/{project_id}/keywords")
-def create_keyword(request: Request, project_id: str, phrase: str = Form(...), tags: str = Form("")):
+def create_keyword(request: Request, project_id: str, phrases: str = Form(...), tags: str = Form("")):
     if redirect := require_login(request):
         return redirect
     tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-    db.execute(
-        """
-        insert into keywords (project_id, phrase, tags)
-        values (%s, %s, %s)
-        on conflict (project_id, phrase) do update set active = true
-        returning id
-        """,
-        (project_id, phrase.strip(), tag_list),
-    )
-    return redirect_home(project_id, "Keyword added")
+    keyword_lines = [line.strip() for line in phrases.replace(",", "\n").splitlines() if line.strip()]
+    unique_phrases = list(dict.fromkeys(keyword_lines))
+    if not unique_phrases:
+        return redirect_home(project_id, "Add at least one keyword")
+
+    with db.connect() as conn:
+        with conn.transaction():
+            for phrase in unique_phrases:
+                conn.execute(
+                    """
+                    insert into keywords (project_id, phrase, tags)
+                    values (%s, %s, %s)
+                    on conflict (project_id, phrase) do update set active = true, tags = excluded.tags
+                    """,
+                    (project_id, phrase, tag_list),
+                )
+    label = "keyword" if len(unique_phrases) == 1 else "keywords"
+    return redirect_home(project_id, f"Added {len(unique_phrases)} {label}")
 
 
 @app.post("/projects/{project_id}/notes")

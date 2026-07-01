@@ -71,9 +71,9 @@
           <div class="main-column">
             <div class="toolbar">
               <form id="keyword-form" class="inline-form keyword-form" action="/projects/{{ project.id }}/keywords" method="post">
-                <input name="phrase" placeholder="Add keyword" required />
+                <textarea name="phrases" rows="4" placeholder="Add keywords, one per line" required></textarea>
                 <input name="tags" placeholder="Tags, comma separated" />
-                <button type="submit">Add keyword</button>
+                <button type="submit">Add keywords</button>
               </form>
             </div>
 
