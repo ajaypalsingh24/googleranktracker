@@ -1,30 +1,48 @@
 from __future__ import annotations
 
+import csv
+import math
 import os
 from contextlib import asynccontextmanager
+from datetime import date
+from io import StringIO
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from psycopg.types.json import Jsonb
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import db
+from app.security import (
+    bootstrap_admin,
+    can,
+    csrf_token,
+    hash_password,
+    login_user,
+    logout_user,
+    require_user,
+    verify_csrf,
+    verify_password,
+)
 from app.serper import check_keyword_rank
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+templates.env.globals["can"] = can
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.ensure_schema()
+    bootstrap_admin()
     yield
 
 
@@ -34,58 +52,98 @@ app.add_middleware(
     secret_key=os.getenv("SESSION_SECRET", "dev-secret-change-me"),
     same_site="lax",
     https_only=os.getenv("RENDER") == "true",
+    max_age=None,
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
-def is_logged_in(request: Request) -> bool:
-    return not os.getenv("APP_PASSWORD") or request.session.get("logged_in") is True
+def render(request: Request, template: str, context: dict[str, Any] | None = None, status_code: int = 200):
+    context = context or {}
+    user_or_redirect = require_user(request)
+    if isinstance(user_or_redirect, RedirectResponse):
+        return user_or_redirect
+    context.update(
+        {
+            "request": request,
+            "current_user": user_or_redirect,
+            "csrf_token": csrf_token(request),
+            "projects_nav": project_options(),
+        }
+    )
+    return templates.TemplateResponse(template, context, status_code=status_code)
 
 
-def require_login(request: Request) -> RedirectResponse | None:
-    if is_logged_in(request):
-        return None
-    return RedirectResponse("/login", status_code=303)
+def redirect_to(path: str, **params: Any) -> RedirectResponse:
+    clean = {key: value for key, value in params.items() if value not in (None, "")}
+    query = f"?{urlencode(clean)}" if clean else ""
+    return RedirectResponse(f"{path}{query}", status_code=303)
 
 
-def redirect_home(project_id: str | None = None, message: str | None = None, serp_check_id: str | None = None) -> RedirectResponse:
-    parts = []
-    if project_id:
-        parts.append(f"project_id={project_id}")
-    if message:
-        parts.append(f"message={message}")
-    if serp_check_id:
-        parts.append(f"serp_check_id={serp_check_id}")
-    query = f"?{'&'.join(parts)}" if parts else ""
-    return RedirectResponse(f"/{query}", status_code=303)
+@app.get("/healthz")
+def healthz():
+    return {"ok": True}
 
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    if is_logged_in(request):
+    if request.session.get("user_id"):
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse("auth/login.html", {"request": request, "error": None})
 
 
 @app.post("/login")
-def login(request: Request, password: str = Form(...)):
-    if password != os.getenv("APP_PASSWORD"):
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid password"}, status_code=401)
-    request.session["logged_in"] = True
+def login(request: Request, email: str = Form(...), password: str = Form(...)):
+    user = db.fetch_one("select * from users where lower(email) = lower(%s) and active = true", (email.strip(),))
+    if not user or not verify_password(password, user["password_hash"]):
+        return templates.TemplateResponse(
+            "auth/login.html",
+            {"request": request, "error": "Invalid email or password"},
+            status_code=401,
+        )
+    login_user(request, user)
     return RedirectResponse("/", status_code=303)
 
 
 @app.post("/logout")
-def logout(request: Request):
-    request.session.clear()
+def logout(request: Request, csrf_token_value: str = Form(..., alias="csrf_token")):
+    verify_csrf(request, csrf_token_value)
+    logout_user(request)
     return RedirectResponse("/login", status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, project_id: str | None = None, message: str | None = None, serp_check_id: str | None = None):
-    if redirect := require_login(request):
-        return redirect
+def dashboard(request: Request, project_id: str | None = None, message: str | None = None):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+    projects = project_cards()
+    current_project = select_project(projects, project_id)
+    metrics = empty_metrics()
+    history = []
+    keywords = []
+    if current_project:
+        detail = load_project_dashboard(str(current_project["id"]), limit=12)
+        metrics = detail["metrics"]
+        history = detail["history"]
+        keywords = detail["keywords"]
+    return render(
+        request,
+        "dashboard.html",
+        {
+            "active_nav": "dashboard",
+            "projects": projects,
+            "project": current_project,
+            "metrics": metrics,
+            "history": history,
+            "keywords": keywords,
+            "message": message,
+        },
+    )
 
+
+@app.get("/projects", response_class=HTMLResponse)
+def projects_page(request: Request, q: str = "", message: str | None = None):
+    pattern = f"%{q.strip()}%"
     projects = db.fetch_all(
         """
         select p.*,
@@ -93,161 +151,521 @@ def dashboard(request: Request, project_id: str | None = None, message: str | No
           count(k.id) filter (where k.active)::int as active_keyword_count
         from projects p
         left join keywords k on k.project_id = p.id
+        where %s = '' or p.name ilike %s or p.domain ilike %s
         group by p.id
         order by p.created_at desc
-        """
+        """,
+        (q.strip(), pattern, pattern),
     )
-    current_project = None
-    if projects:
-        current_project = next((project for project in projects if str(project["id"]) == str(project_id)), projects[0])
-
-    context: dict[str, Any] = {
-        "request": request,
-        "projects": projects,
-        "project": current_project,
-        "keywords": [],
-        "metrics": empty_metrics(),
-        "history": [],
-        "notes": [],
-        "serp_results": [],
-        "serp_keyword": None,
-        "message": message,
-    }
-
-    if current_project:
-        context.update(load_project_dashboard(str(current_project["id"]), serp_check_id))
-
-    return templates.TemplateResponse("dashboard.html", context)
+    return render(request, "projects.html", {"active_nav": "projects", "projects": projects, "q": q, "message": message})
 
 
 @app.post("/projects")
 def create_project(
     request: Request,
+    csrf_token_value: str = Form(..., alias="csrf_token"),
     name: str = Form(...),
     domain: str = Form(...),
+    country: str = Form("India"),
     location: str = Form("India"),
     gl: str = Form("in"),
     hl: str = Form("en"),
+    device: str = Form("desktop"),
+    check_frequency: str = Form("manual"),
+    competitors: str = Form(""),
 ):
-    if redirect := require_login(request):
-        return redirect
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    competitor_list = clean_lines(competitors)
     project = db.execute(
         """
-        insert into projects (name, domain, location, gl, hl)
-        values (%s, %s, %s, %s, %s)
+        insert into projects (name, domain, country, location, gl, hl, device, check_frequency, competitors)
+        values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         returning id
         """,
-        (name.strip(), domain.strip(), location.strip(), gl.strip().lower(), hl.strip().lower()),
+        (
+            name.strip(),
+            domain.strip(),
+            country.strip(),
+            location.strip(),
+            gl.strip().lower(),
+            hl.strip().lower(),
+            device,
+            check_frequency,
+            competitor_list,
+        ),
     )
-    return redirect_home(str(project["id"]), "Project added")
+    return redirect_to(f"/projects/{project['id']}", message="Project added")
+
+
+@app.get("/projects/{project_id}", response_class=HTMLResponse)
+def project_detail(
+    request: Request,
+    project_id: str,
+    q: str = "",
+    page: int = 1,
+    per_page: int = 25,
+    serp_check_id: str | None = None,
+    message: str | None = None,
+):
+    page = max(page, 1)
+    per_page = min(max(per_page, 10), 100)
+    detail = load_project_dashboard(project_id, q=q, page=page, per_page=per_page, serp_check_id=serp_check_id)
+    if not detail["project"]:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return render(
+        request,
+        "project_detail.html",
+        {
+            "active_nav": "projects",
+            "message": message,
+            "q": q,
+            "page": page,
+            "per_page": per_page,
+            **detail,
+        },
+    )
+
+
+@app.post("/projects/{project_id}/edit")
+def edit_project(
+    request: Request,
+    project_id: str,
+    csrf_token_value: str = Form(..., alias="csrf_token"),
+    name: str = Form(...),
+    domain: str = Form(...),
+    country: str = Form("India"),
+    location: str = Form("India"),
+    gl: str = Form("in"),
+    hl: str = Form("en"),
+    device: str = Form("desktop"),
+    check_frequency: str = Form("manual"),
+    competitors: str = Form(""),
+):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    db.execute(
+        """
+        update projects
+        set name = %s, domain = %s, country = %s, location = %s, gl = %s, hl = %s,
+            device = %s, check_frequency = %s, competitors = %s, updated_at = now()
+        where id = %s
+        returning id
+        """,
+        (
+            name.strip(),
+            domain.strip(),
+            country.strip(),
+            location.strip(),
+            gl.strip().lower(),
+            hl.strip().lower(),
+            device,
+            check_frequency,
+            clean_lines(competitors),
+            project_id,
+        ),
+    )
+    return redirect_to(f"/projects/{project_id}", message="Project updated")
 
 
 @app.post("/projects/{project_id}/keywords")
-def create_keyword(request: Request, project_id: str, phrases: str = Form(...), tags: str = Form("")):
-    if redirect := require_login(request):
-        return redirect
+def create_keyword(
+    request: Request,
+    project_id: str,
+    csrf_token_value: str = Form(..., alias="csrf_token"),
+    phrases: str = Form(...),
+    tags: str = Form(""),
+    search_volume: str = Form(""),
+):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
     tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-    keyword_lines = [line.strip() for line in phrases.replace(",", "\n").splitlines() if line.strip()]
-    unique_phrases = list(dict.fromkeys(keyword_lines))
+    unique_phrases = list(dict.fromkeys(clean_lines(phrases)))
+    volume = int(search_volume) if search_volume.strip().isdigit() else None
     if not unique_phrases:
-        return redirect_home(project_id, "Add at least one keyword")
-
+        return redirect_to(f"/projects/{project_id}", message="Add at least one keyword")
     with db.connect() as conn:
         with conn.transaction():
             for phrase in unique_phrases:
                 conn.execute(
                     """
-                    insert into keywords (project_id, phrase, tags)
-                    values (%s, %s, %s)
-                    on conflict (project_id, phrase) do update set active = true, tags = excluded.tags
+                    insert into keywords (project_id, phrase, tags, search_volume)
+                    values (%s, %s, %s, %s)
+                    on conflict (project_id, phrase) do update
+                    set active = true, tags = excluded.tags, search_volume = coalesce(excluded.search_volume, keywords.search_volume)
                     """,
-                    (project_id, phrase, tag_list),
+                    (project_id, phrase, tag_list, volume),
                 )
     label = "keyword" if len(unique_phrases) == 1 else "keywords"
-    return redirect_home(project_id, f"Added {len(unique_phrases)} {label}")
+    return redirect_to(f"/projects/{project_id}", message=f"Added {len(unique_phrases)} {label}")
 
 
 @app.post("/projects/{project_id}/notes")
-def add_note(request: Request, project_id: str, note: str = Form(...)):
-    if redirect := require_login(request):
-        return redirect
+def add_note(request: Request, project_id: str, csrf_token_value: str = Form(..., alias="csrf_token"), note: str = Form(...)):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
     db.execute("insert into project_notes (project_id, note) values (%s, %s) returning id", (project_id, note.strip()))
-    return redirect_home(project_id, "Note added")
+    return redirect_to(f"/projects/{project_id}", message="Note added")
 
 
 @app.post("/keywords/{keyword_id}/delete")
-def delete_keyword(request: Request, keyword_id: str, project_id: str = Form(...)):
-    if redirect := require_login(request):
-        return redirect
+def delete_keyword(request: Request, keyword_id: str, csrf_token_value: str = Form(..., alias="csrf_token"), project_id: str = Form(...)):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
     db.execute("delete from keywords where id = %s returning id", (keyword_id,))
-    return redirect_home(project_id, "Keyword deleted")
+    return redirect_to(f"/projects/{project_id}", message="Keyword deleted")
 
 
 @app.post("/keywords/{keyword_id}/check")
-def check_keyword(request: Request, keyword_id: str, project_id: str = Form(...)):
-    if redirect := require_login(request):
-        return redirect
+def check_keyword(request: Request, keyword_id: str, csrf_token_value: str = Form(..., alias="csrf_token"), project_id: str = Form(...)):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
     check_id = run_keyword_check(keyword_id)
-    return redirect_home(project_id, "Keyword checked", check_id)
+    return redirect_to(f"/projects/{project_id}", message="Keyword checked", serp_check_id=check_id)
 
 
 @app.post("/projects/{project_id}/check-all")
-def check_all_keywords(request: Request, project_id: str):
-    if redirect := require_login(request):
-        return redirect
+def check_all_keywords(request: Request, project_id: str, csrf_token_value: str = Form(..., alias="csrf_token")):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
     keywords = db.fetch_all("select id from keywords where project_id = %s and active = true order by created_at asc", (project_id,))
     last_check_id = None
     for keyword in keywords:
         last_check_id = run_keyword_check(str(keyword["id"]))
-    return redirect_home(project_id, f"Checked {len(keywords)} keywords", last_check_id)
+    return redirect_to(f"/projects/{project_id}", message=f"Checked {len(keywords)} keywords", serp_check_id=last_check_id)
 
 
-def load_project_dashboard(project_id: str, serp_check_id: str | None = None) -> dict[str, Any]:
-    project = db.fetch_one("select * from projects where id = %s", (project_id,))
-    keywords = db.fetch_all(
+@app.get("/keywords", response_class=HTMLResponse)
+def keywords_page(request: Request, q: str = "", page: int = 1):
+    page = max(page, 1)
+    per_page = 50
+    pattern = f"%{q.strip()}%"
+    total = db.fetch_one(
+        """
+        select count(*)::int as count
+        from keywords k
+        join projects p on p.id = k.project_id
+        where %s = '' or k.phrase ilike %s or p.name ilike %s or p.domain ilike %s
+        """,
+        (q.strip(), pattern, pattern, pattern),
+    )["count"]
+    rows = db.fetch_all(
         """
         with latest as (
-          select distinct on (keyword_id)
-            keyword_id, id as check_id, position, previous_position, change, matched_url, result_count, checked_at
+          select distinct on (keyword_id) keyword_id, position, change, matched_url, checked_at
           from rank_checks
+          order by keyword_id, checked_at desc
+        )
+        select k.*, p.name as project_name, p.domain, latest.position, latest.change, latest.matched_url, latest.checked_at
+        from keywords k
+        join projects p on p.id = k.project_id
+        left join latest on latest.keyword_id = k.id
+        where %s = '' or k.phrase ilike %s or p.name ilike %s or p.domain ilike %s
+        order by k.created_at desc
+        limit %s offset %s
+        """,
+        (q.strip(), pattern, pattern, pattern, per_page, (page - 1) * per_page),
+    )
+    return render(
+        request,
+        "keywords.html",
+        {"active_nav": "keywords", "keywords": rows, "q": q, "page": page, "pages": max(math.ceil(total / per_page), 1)},
+    )
+
+
+@app.get("/reports", response_class=HTMLResponse)
+def reports_page(
+    request: Request,
+    project_id: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    keyword_id: str | None = None,
+):
+    projects = project_options()
+    project = select_project(projects, project_id)
+    history = []
+    keyword_history = []
+    keywords = []
+    if project:
+        history = project_history(str(project["id"]), date_from, date_to)
+        keywords = db.fetch_all("select id, phrase from keywords where project_id = %s order by phrase", (project["id"],))
+        if keyword_id:
+            keyword_history = db.fetch_all(
+                """
+                select rc.*, k.phrase
+                from rank_checks rc
+                join keywords k on k.id = rc.keyword_id
+                where k.id = %s
+                  and (%s::date is null or rc.checked_at::date >= %s::date)
+                  and (%s::date is null or rc.checked_at::date <= %s::date)
+                order by rc.checked_at desc
+                limit 100
+                """,
+                (keyword_id, date_from, date_from, date_to, date_to),
+            )
+    return render(
+        request,
+        "reports.html",
+        {
+            "active_nav": "reports",
+            "projects": projects,
+            "project": project,
+            "history": history,
+            "keywords": keywords,
+            "keyword_history": keyword_history,
+            "keyword_id": keyword_id,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
+    )
+
+
+@app.get("/reports/export.csv")
+def export_csv(request: Request, project_id: str, date_from: date | None = None, date_to: date | None = None):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+    rows = db.fetch_all(
+        """
+        with latest as (
+          select distinct on (keyword_id) keyword_id, position, previous_position, change, matched_url, checked_at
+          from rank_checks
+          where (%s::date is null or checked_at::date >= %s::date)
+            and (%s::date is null or checked_at::date <= %s::date)
           order by keyword_id, checked_at desc
         ),
         bests as (
-          select keyword_id, min(position) as best_position
-          from rank_checks
-          where position is not null
-          group by keyword_id
+          select keyword_id, min(position) as best_position from rank_checks where position is not null group by keyword_id
         ),
         firsts as (
           select distinct on (keyword_id) keyword_id, position as first_position
-          from rank_checks
-          where position is not null
-          order by keyword_id, checked_at asc
+          from rank_checks where position is not null order by keyword_id, checked_at asc
         )
-        select k.*, latest.check_id, latest.position, latest.previous_position, latest.change,
-          latest.matched_url, latest.result_count, latest.checked_at, bests.best_position, firsts.first_position
+        select p.name as project, p.domain, k.phrase, latest.position, latest.previous_position,
+          latest.change, bests.best_position, firsts.first_position, k.search_volume,
+          latest.checked_at, latest.matched_url
         from keywords k
+        join projects p on p.id = k.project_id
         left join latest on latest.keyword_id = k.id
         left join bests on bests.keyword_id = k.id
         left join firsts on firsts.keyword_id = k.id
-        where k.project_id = %s
-        order by k.created_at asc
+        where p.id = %s
+        order by k.phrase
         """,
-        (project_id,),
+        (date_from, date_from, date_to, date_to, project_id),
     )
-    history = db.fetch_all(
+    output = StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=[
+            "project",
+            "domain",
+            "phrase",
+            "position",
+            "previous_position",
+            "change",
+            "best_position",
+            "first_position",
+            "search_volume",
+            "checked_at",
+            "matched_url",
+        ],
+    )
+    writer.writeheader()
+    writer.writerows(rows)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=rank-report.csv"},
+    )
+
+
+@app.get("/competitors", response_class=HTMLResponse)
+def competitors_page(request: Request):
+    rows = db.fetch_all("select id, name, domain, competitors from projects order by name")
+    return render(request, "competitors.html", {"active_nav": "competitors", "projects": rows})
+
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, message: str | None = None):
+    return render(request, "settings.html", {"active_nav": "settings", "message": message})
+
+
+@app.post("/settings/password")
+def change_password(
+    request: Request,
+    csrf_token_value: str = Form(..., alias="csrf_token"),
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    if not verify_password(current_password, user["password_hash"]):
+        return redirect_to("/settings", message="Current password is incorrect")
+    if len(new_password) < 8 or new_password != confirm_password:
+        return redirect_to("/settings", message="New passwords must match and be at least 8 characters")
+    db.execute("update users set password_hash = %s, updated_at = now() where id = %s returning id", (hash_password(new_password), user["id"]))
+    return redirect_to("/settings", message="Password changed")
+
+
+@app.get("/users", response_class=HTMLResponse)
+def users_page(request: Request, message: str | None = None):
+    user = require_user(request, "admin")
+    if isinstance(user, RedirectResponse):
+        return user
+    rows = db.fetch_all("select id, email, name, role, active, created_at, last_login_at from users order by created_at desc")
+    return render(request, "users.html", {"active_nav": "users", "users": rows, "message": message})
+
+
+@app.post("/users")
+def create_user(
+    request: Request,
+    csrf_token_value: str = Form(..., alias="csrf_token"),
+    email: str = Form(...),
+    name: str = Form(...),
+    role: str = Form(...),
+    password: str = Form(...),
+):
+    user = require_user(request, "admin")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    if role not in {"admin", "manager", "viewer"}:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    if len(password) < 8:
+        return redirect_to("/users", message="Password must be at least 8 characters")
+    db.execute(
         """
-        select date_trunc('day', rc.checked_at) as day,
-          round(avg(coalesce(rc.position, 101))::numeric, 2)::float as average_position,
-          count(*)::int as checks
-        from rank_checks rc
-        join keywords k on k.id = rc.keyword_id
-        where k.project_id = %s
-        group by 1
-        order by 1 asc
+        insert into users (email, name, role, password_hash)
+        values (%s, %s, %s, %s)
+        returning id
         """,
-        (project_id,),
+        (email.strip().lower(), name.strip(), role, hash_password(password)),
     )
+    return redirect_to("/users", message="User created")
+
+
+@app.post("/users/{user_id}/edit")
+def edit_user(
+    request: Request,
+    user_id: str,
+    csrf_token_value: str = Form(..., alias="csrf_token"),
+    email: str = Form(...),
+    name: str = Form(...),
+    role: str = Form(...),
+    active: str = Form("false"),
+    password: str = Form(""),
+):
+    user = require_user(request, "admin")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    if role not in {"admin", "manager", "viewer"}:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    is_active = active == "true"
+    if password:
+        db.execute(
+            """
+            update users set email = %s, name = %s, role = %s, active = %s, password_hash = %s, updated_at = now()
+            where id = %s returning id
+            """,
+            (email.strip().lower(), name.strip(), role, is_active, hash_password(password), user_id),
+        )
+    else:
+        db.execute(
+            """
+            update users set email = %s, name = %s, role = %s, active = %s, updated_at = now()
+            where id = %s returning id
+            """,
+            (email.strip().lower(), name.strip(), role, is_active, user_id),
+        )
+    return redirect_to("/users", message="User updated")
+
+
+@app.post("/users/{user_id}/delete")
+def delete_user(request: Request, user_id: str, csrf_token_value: str = Form(..., alias="csrf_token")):
+    user = require_user(request, "admin")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    if str(user["id"]) == user_id:
+        return redirect_to("/users", message="You cannot delete your own account")
+    db.execute("delete from users where id = %s returning id", (user_id,))
+    return redirect_to("/users", message="User deleted")
+
+
+def clean_lines(value: str) -> list[str]:
+    return [line.strip() for line in value.replace(",", "\n").splitlines() if line.strip()]
+
+
+def project_options() -> list[dict[str, Any]]:
+    return db.fetch_all("select id, name, domain from projects order by name")
+
+
+def project_cards() -> list[dict[str, Any]]:
+    return db.fetch_all(
+        """
+        select p.*,
+          count(k.id)::int as keyword_count,
+          count(k.id) filter (where k.active)::int as active_keyword_count,
+          round(avg(latest.position)::numeric, 2)::float as average_position
+        from projects p
+        left join keywords k on k.project_id = p.id
+        left join lateral (
+          select rc.position from rank_checks rc where rc.keyword_id = k.id order by rc.checked_at desc limit 1
+        ) latest on true
+        group by p.id
+        order by p.created_at desc
+        """
+    )
+
+
+def select_project(projects: list[dict[str, Any]], project_id: str | None) -> dict[str, Any] | None:
+    if not projects:
+        return None
+    return next((project for project in projects if str(project["id"]) == str(project_id)), projects[0])
+
+
+def load_project_dashboard(
+    project_id: str,
+    q: str = "",
+    page: int = 1,
+    per_page: int = 25,
+    limit: int | None = None,
+    serp_check_id: str | None = None,
+) -> dict[str, Any]:
+    project = db.fetch_one("select * from projects where id = %s", (project_id,))
+    pattern = f"%{q.strip()}%"
+    total = db.fetch_one(
+        """
+        select count(*)::int as count
+        from keywords
+        where project_id = %s and (%s = '' or phrase ilike %s)
+        """,
+        (project_id, q.strip(), pattern),
+    )["count"]
+    fetch_limit = limit or per_page
+    offset = 0 if limit else (page - 1) * per_page
+    keywords = db.fetch_all(keyword_summary_sql() + " limit %s offset %s", (project_id, q.strip(), pattern, fetch_limit, offset))
+    all_keywords = db.fetch_all(keyword_summary_sql(), (project_id, "", "%%"))
+    history = project_history(project_id, None, None)
     notes = db.fetch_all("select * from project_notes where project_id = %s order by created_at desc limit 20", (project_id,))
     serp_results = []
     serp_keyword = None
@@ -262,16 +680,67 @@ def load_project_dashboard(project_id: str, serp_check_id: str | None = None) ->
             """,
             (serp_check_id,),
         )
-
+    pages = max(math.ceil(total / per_page), 1)
     return {
         "project": project,
         "keywords": keywords,
-        "metrics": build_metrics(keywords),
+        "metrics": build_metrics(all_keywords),
         "history": history,
         "notes": notes,
         "serp_results": serp_results,
         "serp_keyword": serp_keyword,
+        "total_keywords": total,
+        "pages": pages,
     }
+
+
+def keyword_summary_sql() -> str:
+    return """
+    with latest as (
+      select distinct on (keyword_id)
+        keyword_id, id as check_id, position, previous_position, change, matched_url, result_count, checked_at
+      from rank_checks
+      order by keyword_id, checked_at desc
+    ),
+    bests as (
+      select keyword_id, min(position) as best_position
+      from rank_checks
+      where position is not null
+      group by keyword_id
+    ),
+    firsts as (
+      select distinct on (keyword_id) keyword_id, position as first_position
+      from rank_checks
+      where position is not null
+      order by keyword_id, checked_at asc
+    )
+    select k.*, latest.check_id, latest.position, latest.previous_position, latest.change,
+      latest.matched_url, latest.result_count, latest.checked_at, bests.best_position, firsts.first_position
+    from keywords k
+    left join latest on latest.keyword_id = k.id
+    left join bests on bests.keyword_id = k.id
+    left join firsts on firsts.keyword_id = k.id
+    where k.project_id = %s and (%s = '' or k.phrase ilike %s)
+    order by k.created_at asc
+    """
+
+
+def project_history(project_id: str, date_from: date | None, date_to: date | None) -> list[dict[str, Any]]:
+    return db.fetch_all(
+        """
+        select date_trunc('day', rc.checked_at) as day,
+          round(avg(coalesce(rc.position, 101))::numeric, 2)::float as average_position,
+          count(*)::int as checks
+        from rank_checks rc
+        join keywords k on k.id = rc.keyword_id
+        where k.project_id = %s
+          and (%s::date is null or rc.checked_at::date >= %s::date)
+          and (%s::date is null or rc.checked_at::date <= %s::date)
+        group by 1
+        order by 1 asc
+        """,
+        (project_id, date_from, date_from, date_to, date_to),
+    )
 
 
 def run_keyword_check(keyword_id: str) -> str:
@@ -286,12 +755,10 @@ def run_keyword_check(keyword_id: str) -> str:
     )
     if not keyword:
         raise HTTPException(status_code=404, detail="Keyword not found")
-
     previous = db.fetch_one("select position from rank_checks where keyword_id = %s order by checked_at desc limit 1", (keyword_id,))
     previous_position = previous["position"] if previous else None
     rank = check_keyword_rank(keyword)
     change = previous_position - rank["position"] if previous_position and rank["position"] else None
-
     with db.connect() as conn:
         with conn.transaction():
             check = conn.execute(
@@ -327,6 +794,7 @@ def empty_metrics() -> dict[str, Any]:
         "checked": 0,
         "average_position": None,
         "improved": 0,
+        "declined": 0,
         "top3": 0,
         "top10": 0,
         "top30": 0,
@@ -343,6 +811,7 @@ def build_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     metrics["checked"] = len(positions)
     metrics["average_position"] = round(sum(positions) / len(positions), 2) if positions else None
     metrics["improved"] = len([row for row in active if row["change"] and row["change"] > 0])
+    metrics["declined"] = len([row for row in active if row["change"] and row["change"] < 0])
     metrics["top3"] = len([position for position in positions if position <= 3])
     metrics["top10"] = len([position for position in positions if position <= 10])
     metrics["top30"] = len([position for position in positions if position <= 30])

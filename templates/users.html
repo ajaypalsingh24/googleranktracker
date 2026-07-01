@@ -1,0 +1,46 @@
+{% extends "app_layout.html" %}
+{% block title %}Users - Google Rank Tracker{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div><p class="eyebrow">Admin</p><h1>Users</h1></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><div><p class="eyebrow">Create user</p><h2>Add teammate</h2></div></div>
+    <form class="user-form" action="/users" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <input name="name" placeholder="Name" required />
+      <input name="email" type="email" placeholder="Email" required />
+      <select name="role"><option value="manager">manager</option><option value="viewer">viewer</option><option value="admin">admin</option></select>
+      <input name="password" type="password" placeholder="Temporary password" minlength="8" required />
+      <button type="submit">Create user</button>
+    </form>
+  </section>
+  <section class="user-grid">
+    {% for user in users %}
+      <article class="panel user-card">
+        <form action="/users/{{ user.id }}/edit" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+          <div class="panel-head">
+            <div><p class="eyebrow">{{ user.role }}</p><h2>{{ user.name }}</h2><p class="muted">{{ user.email }}</p></div>
+            <span class="status {{ 'ok' if user.active else 'off' }}">{{ 'active' if user.active else 'disabled' }}</span>
+          </div>
+          <div class="user-edit-grid">
+            <label>Name<input name="name" value="{{ user.name }}" required /></label>
+            <label>Email<input name="email" type="email" value="{{ user.email }}" required /></label>
+            <label>Role<select name="role"><option value="admin" {{ 'selected' if user.role == 'admin' else '' }}>admin</option><option value="manager" {{ 'selected' if user.role == 'manager' else '' }}>manager</option><option value="viewer" {{ 'selected' if user.role == 'viewer' else '' }}>viewer</option></select></label>
+            <label>Status<select name="active"><option value="true" {{ 'selected' if user.active else '' }}>active</option><option value="false" {{ 'selected' if not user.active else '' }}>disabled</option></select></label>
+            <label class="full">Reset password<input name="password" type="password" placeholder="Leave blank to keep current password" /></label>
+          </div>
+          <p class="muted">Last login: {{ user.last_login_at.strftime("%d %b %Y") if user.last_login_at else "-" }}</p>
+          <div class="row-actions">
+            <button type="submit">Save user</button>
+          </div>
+        </form>
+        <form action="/users/{{ user.id }}/delete" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+          <button class="danger-btn" type="submit">Delete user</button>
+        </form>
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

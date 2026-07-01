@@ -1,0 +1,41 @@
+{% extends "app_layout.html" %}
+{% block title %}Keywords - Google Rank Tracker{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div><p class="eyebrow">Keyword library</p><h1>Keywords</h1></div>
+  </section>
+  <section class="panel">
+    <form class="search-row" action="/keywords" method="get">
+      <input name="q" value="{{ q }}" placeholder="Search keywords, projects, or domains" />
+      <button class="ghost" type="submit">Search</button>
+    </form>
+  </section>
+  <section class="panel">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Keyword</th><th>Project</th><th>Latest</th><th>Change</th><th>Updated</th><th>URL</th></tr>
+        </thead>
+        <tbody>
+          {% for item in keywords %}
+            <tr>
+              <td><strong>{{ item.phrase }}</strong></td>
+              <td><a href="/projects/{{ item.project_id }}">{{ item.project_name }}</a><br /><span class="muted">{{ item.domain }}</span></td>
+              <td>{{ item.position if item.position is not none else "Not found" }}</td>
+              <td>{% if item.change is none %}-{% elif item.change > 0 %}<span class="up">+{{ item.change }}</span>{% elif item.change < 0 %}<span class="down">{{ item.change }}</span>{% else %}0{% endif %}</td>
+              <td>{{ item.checked_at.strftime("%d %b %Y") if item.checked_at else "-" }}</td>
+              <td>{{ item.matched_url|truncate(50) if item.matched_url else "-" }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="empty-row">No keywords found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      {% if page > 1 %}<a href="/keywords?q={{ q }}&page={{ page - 1 }}">Previous</a>{% endif %}
+      <span>Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a href="/keywords?q={{ q }}&page={{ page + 1 }}">Next</a>{% endif %}
+    </div>
+  </section>
+{% endblock %}

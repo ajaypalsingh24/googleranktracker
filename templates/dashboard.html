@@ -1,202 +1,54 @@
-{% extends "layout.html" %}
-{% block body %}
-  <main class="shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">FastAPI + Serper + Neon</p>
-        <h1>Google Rank Tracker</h1>
-      </div>
-      <div class="topbar-actions">
-        {% if projects %}
-          <form action="/" method="get">
-            <select name="project_id" onchange="this.form.submit()" aria-label="Select project">
-              {% for item in projects %}
-                <option value="{{ item.id }}" {% if project and item.id == project.id %}selected{% endif %}>
-                  {{ item.name }} ({{ item.domain }})
-                </option>
-              {% endfor %}
-            </select>
-          </form>
-        {% endif %}
-        <form action="/logout" method="post"><button class="ghost" type="submit">Log out</button></form>
-      </div>
-    </header>
-
-    {% if message %}<div class="notice">{{ message }}</div>{% endif %}
-
-    <section class="setup-band">
-      <form class="inline-form" action="/projects" method="post">
-        <input name="name" placeholder="Project name" required />
-        <input name="domain" placeholder="example.com" required />
-        <input name="location" placeholder="India" value="India" />
-        <input name="gl" placeholder="gl" value="in" maxlength="2" />
-        <input name="hl" placeholder="hl" value="en" maxlength="5" />
-        <button type="submit">Add project</button>
+{% extends "app_layout.html" %}
+{% block title %}Dashboard - Google Rank Tracker{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h1>Dashboard</h1>
+    </div>
+    {% if project and can(current_user, 'manager') %}
+      <form class="loading-form" action="/projects/{{ project.id }}/check-all" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <button type="submit">Refresh all rankings</button>
       </form>
-    </section>
-
-    {% if not project %}
-      <section class="empty-state">
-        <h2>Create your first project</h2>
-        <p>Add your website domain, then add keywords and run your first rank check.</p>
-      </section>
-    {% else %}
-      <section class="project-panel">
-        <div class="project-meta">
-          <div>
-            <p class="eyebrow">Project</p>
-            <h2>{{ project.name }}</h2>
-            <dl>
-              <div><dt>Domain</dt><dd>{{ project.domain }}</dd></div>
-              <div><dt>Location</dt><dd>{{ project.location }}</dd></div>
-              <div><dt>Google</dt><dd>{{ project.gl|upper }} / {{ project.hl }}</dd></div>
-              <div><dt>Frequency</dt><dd>{{ project.check_frequency }}</dd></div>
-            </dl>
-          </div>
-          <form action="/projects/{{ project.id }}/check-all" method="post">
-            <button type="submit">Refresh all rankings</button>
-          </form>
-        </div>
-
-        <div class="metric-grid">
-          <article><span>Average Position</span><strong>{{ metrics.average_position or "-" }}</strong><small>{{ metrics.checked }} checked</small></article>
-          <article><span>Improved</span><strong>{{ metrics.improved }}</strong><small>Since previous check</small></article>
-          <article><span>Top 3</span><strong>{{ metrics.top3 }}</strong><small>Keywords</small></article>
-          <article><span>Top 10</span><strong>{{ metrics.top10 }}</strong><small>Keywords</small></article>
-          <article><span>Top 30</span><strong>{{ metrics.top30 }}</strong><small>Keywords</small></article>
-          <article><span>Top 100</span><strong>{{ metrics.top100 }}</strong><small>{{ metrics.not_found }} not found</small></article>
-        </div>
-
-        <section class="work-area">
-          <div class="main-column">
-            <div class="toolbar">
-              <form id="keyword-form" class="inline-form keyword-form" action="/projects/{{ project.id }}/keywords" method="post">
-                <textarea name="phrases" rows="4" placeholder="Add keywords, one per line" required></textarea>
-                <input name="tags" placeholder="Tags, comma separated" />
-                <button type="submit">Add keywords</button>
-              </form>
-            </div>
-
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Keyword</th>
-                    <th>Change</th>
-                    <th>Latest</th>
-                    <th>Best</th>
-                    <th>First</th>
-                    <th>Updated</th>
-                    <th>URL found</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for keyword in keywords %}
-                    <tr>
-                      <td>{{ loop.index }}</td>
-                      <td>
-                        <div class="keyword-name">{{ keyword.phrase }}</div>
-                        {% if keyword.tags %}<div class="tags">{{ keyword.tags|join(", ") }}</div>{% endif %}
-                      </td>
-                      <td>
-                        {% if keyword.change is none %}
-                          <span class="flat">-</span>
-                        {% elif keyword.change > 0 %}
-                          <span class="up">+{{ keyword.change }}</span>
-                        {% elif keyword.change < 0 %}
-                          <span class="down">{{ keyword.change }}</span>
-                        {% else %}
-                          <span class="flat">0</span>
-                        {% endif %}
-                      </td>
-                      <td>{{ keyword.position if keyword.position is not none else "Not found" }}</td>
-                      <td>{{ keyword.best_position if keyword.best_position is not none else "-" }}</td>
-                      <td>{{ keyword.first_position if keyword.first_position is not none else "-" }}</td>
-                      <td>{{ keyword.checked_at.strftime("%d %b %Y, %I:%M %p") if keyword.checked_at else "-" }}</td>
-                      <td>
-                        {% if keyword.matched_url %}
-                          <a href="{{ keyword.matched_url }}" target="_blank" rel="noreferrer">{{ keyword.matched_url|truncate(48) }}</a>
-                        {% else %}
-                          <span class="not-found">NOT FOUND</span>
-                        {% endif %}
-                      </td>
-                      <td>
-                        <div class="row-actions">
-                          <form action="/keywords/{{ keyword.id }}/check" method="post">
-                            <input type="hidden" name="project_id" value="{{ project.id }}" />
-                            <button type="submit">Check</button>
-                          </form>
-                          {% if keyword.check_id %}
-                            <a class="button-link ghost" href="/?project_id={{ project.id }}&serp_check_id={{ keyword.check_id }}">SERP</a>
-                          {% endif %}
-                          <form action="/keywords/{{ keyword.id }}/delete" method="post">
-                            <input type="hidden" name="project_id" value="{{ project.id }}" />
-                            <button class="danger-btn" type="submit">Delete</button>
-                          </form>
-                        </div>
-                      </td>
-                    </tr>
-                  {% else %}
-                    <tr><td colspan="9" class="empty-row">No keywords yet.</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-
-            <section class="chart-band">
-              <div>
-                <p class="eyebrow">Project summary graph</p>
-                <h3>Average position history</h3>
-              </div>
-              <div class="history-chart">
-                {% if history %}
-                  {% for point in history %}
-                    {% set height = 100 - point.average_position %}
-                    <div class="bar" style="height: {{ [height, 8]|max }}%" title="{{ point.day.strftime('%d %b %Y') }}: {{ point.average_position }}"></div>
-                  {% endfor %}
-                {% else %}
-                  <p>Run checks to build history.</p>
-                {% endif %}
-              </div>
-            </section>
-          </div>
-
-          <aside class="side-panel">
-            <section>
-              <p class="eyebrow">Last check summary</p>
-              <h3>{{ serp_keyword.phrase if serp_keyword else "Select a keyword" }}</h3>
-              <ol class="serp-list">
-                {% for result in serp_results %}
-                  <li>
-                    <a href="{{ result.link }}" target="_blank" rel="noreferrer">{{ result.title or result.link }}</a>
-                    <p>{{ result.display_link or result.link }}</p>
-                    <p>{{ result.snippet }}</p>
-                  </li>
-                {% else %}
-                  <li>No SERP snapshot selected yet.</li>
-                {% endfor %}
-              </ol>
-            </section>
-
-            <section>
-              <form class="note-form" action="/projects/{{ project.id }}/notes" method="post">
-                <label>
-                  Notes
-                  <textarea name="note" rows="3" placeholder="Add project note" required></textarea>
-                </label>
-                <button type="submit">Add note</button>
-              </form>
-              <div class="notes-list">
-                {% for note in notes %}
-                  <div class="note"><strong>{{ note.created_at.strftime("%d %b %Y") }}</strong><br />{{ note.note }}</div>
-                {% endfor %}
-              </div>
-            </section>
-          </aside>
-        </section>
-      </section>
     {% endif %}
-  </main>
+  </section>
+
+  {% include "components/metric_cards.html" %}
+
+  <section class="split-grid">
+    <div class="panel">
+      <div class="panel-head">
+        <div><p class="eyebrow">Projects</p><h2>Tracked websites</h2></div>
+        <a class="button-link ghost" href="/projects">View all</a>
+      </div>
+      <div class="project-card-grid">
+        {% for item in projects %}
+          <a class="project-card" href="/projects/{{ item.id }}">
+            <span>{{ item.domain }}</span>
+            <strong>{{ item.name }}</strong>
+            <small>{{ item.active_keyword_count }} active keywords</small>
+            <b>{{ item.average_position or "-" }}</b>
+          </a>
+        {% else %}
+          <p class="muted">Create your first project to start tracking rankings.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="panel">
+      <p class="eyebrow">Ranking trend</p>
+      <h2>{{ project.name if project else "No project selected" }}</h2>
+      {% include "components/history_chart.html" %}
+    </div>
+  </section>
+
+  {% if project %}
+    <section class="panel">
+      <div class="panel-head">
+        <div><p class="eyebrow">Latest keywords</p><h2>{{ project.name }}</h2></div>
+        <a class="button-link ghost" href="/projects/{{ project.id }}">Open project</a>
+      </div>
+      {% include "components/keyword_table.html" %}
+    </section>
+  {% endif %}
 {% endblock %}

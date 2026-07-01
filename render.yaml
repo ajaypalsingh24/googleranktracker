@@ -13,7 +13,13 @@ services:
         sync: false
       - key: SERPER_API_KEY
         sync: false
-      - key: APP_PASSWORD
+      - key: ADMIN_EMAIL
         sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        sync: false
+      - key: SESSION_TIMEOUT_SECONDS
+        value: 1800
       - key: SESSION_SECRET
         generateValue: true

@@ -1,0 +1,17 @@
+{% extends "app_layout.html" %}
+{% block title %}Settings - Google Rank Tracker{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div><p class="eyebrow">Account</p><h1>Settings</h1></div>
+  </section>
+  <section class="panel narrow">
+    <div class="panel-head"><div><p class="eyebrow">Security</p><h2>Change password</h2></div></div>
+    <form class="stack-form" action="/settings/password" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <label>Current password<input type="password" name="current_password" required /></label>
+      <label>New password<input type="password" name="new_password" minlength="8" required /></label>
+      <label>Confirm new password<input type="password" name="confirm_password" minlength="8" required /></label>
+      <button type="submit">Change password</button>
+    </form>
+  </section>
+{% endblock %}

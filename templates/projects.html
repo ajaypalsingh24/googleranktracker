@@ -1,0 +1,46 @@
+{% extends "app_layout.html" %}
+{% block title %}Projects - Google Rank Tracker{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div><p class="eyebrow">Workspace</p><h1>Projects</h1></div>
+  </section>
+
+  <section class="panel">
+    <form class="search-row" action="/projects" method="get">
+      <input name="q" value="{{ q }}" placeholder="Search projects or domains" />
+      <button class="ghost" type="submit">Search</button>
+    </form>
+  </section>
+
+  {% if can(current_user, 'manager') %}
+    <section class="panel">
+      <div class="panel-head"><div><p class="eyebrow">Add project</p><h2>Track a new domain</h2></div></div>
+      <form class="project-form" action="/projects" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input name="name" placeholder="Project name" required />
+        <input name="domain" placeholder="example.com" required />
+        <input name="country" placeholder="Country" value="India" />
+        <input name="location" placeholder="Location" value="India" />
+        <input name="gl" placeholder="gl" value="in" maxlength="2" />
+        <input name="hl" placeholder="hl" value="en" maxlength="5" />
+        <select name="device"><option>desktop</option><option>mobile</option></select>
+        <select name="check_frequency"><option>manual</option><option>daily</option><option>weekly</option></select>
+        <textarea name="competitors" rows="3" placeholder="Competitors, one per line"></textarea>
+        <button type="submit">Add project</button>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="project-card-grid wide">
+    {% for item in projects %}
+      <a class="project-card" href="/projects/{{ item.id }}">
+        <span>{{ item.domain }}</span>
+        <strong>{{ item.name }}</strong>
+        <small>{{ item.country }} - {{ item.active_keyword_count }} active keywords</small>
+        <b>{{ item.keyword_count }}</b>
+      </a>
+    {% else %}
+      <div class="panel"><p class="muted">No projects yet.</p></div>
+    {% endfor %}
+  </section>
+{% endblock %}

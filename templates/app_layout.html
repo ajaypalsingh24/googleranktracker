@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block body %}
+  <div class="app-frame">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">R</span>
+        <span>Rank Tracker</span>
+      </a>
+      <nav class="nav-list">
+        <a class="{{ 'active' if active_nav == 'dashboard' else '' }}" href="/">Dashboard</a>
+        <a class="{{ 'active' if active_nav == 'projects' else '' }}" href="/projects">Projects</a>
+        <a class="{{ 'active' if active_nav == 'keywords' else '' }}" href="/keywords">Keywords</a>
+        <a class="{{ 'active' if active_nav == 'reports' else '' }}" href="/reports">Reports</a>
+        <a class="{{ 'active' if active_nav == 'competitors' else '' }}" href="/competitors">Competitors</a>
+        <a class="{{ 'active' if active_nav == 'settings' else '' }}" href="/settings">Settings</a>
+        {% if can(current_user, 'admin') %}
+          <a class="{{ 'active' if active_nav == 'users' else '' }}" href="/users">Users</a>
+        {% endif %}
+      </nav>
+    </aside>
+
+    <div class="page">
+      <header class="topbar">
+        <form class="project-switcher" action="/" method="get">
+          <select name="project_id" onchange="this.form.submit()" aria-label="Selected project">
+            {% for item in projects_nav %}
+              <option value="{{ item.id }}">{{ item.name }} - {{ item.domain }}</option>
+            {% else %}
+              <option>No projects yet</option>
+            {% endfor %}
+          </select>
+        </form>
+        <div class="user-menu">
+          <div>
+            <strong>{{ current_user.name }}</strong>
+            <span>{{ current_user.role }}</span>
+          </div>
+          <form action="/logout" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <button class="ghost" type="submit">Logout</button>
+          </form>
+        </div>
+      </header>
+
+      <main class="content">
+        {% if message %}<div class="notice">{{ message }}</div>{% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+{% endblock %}

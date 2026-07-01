@@ -1,0 +1,9 @@
+<div class="history-chart">
+  {% if history %}
+    {% for point in history %}
+      <div class="bar" style="height: {{ 8 if (100 - point.average_position) < 8 else (100 - point.average_position) }}%" title="{{ point.day.strftime('%d %b %Y') }}: {{ point.average_position }}"></div>
+    {% endfor %}
+  {% else %}
+    <p>Run ranking checks to build trend history.</p>
+  {% endif %}
+</div>

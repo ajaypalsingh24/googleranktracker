@@ -1,81 +1,84 @@
 # Google Rank Tracker
 
-FastAPI rank tracking app for Google keywords using Serper, Neon Postgres, Render, and GitHub auto deploys.
+FastAPI + Jinja rank tracking app using Serper, Neon Postgres, Render, and GitHub auto deploys.
 
-## Stack
+## Features
 
-- Python + FastAPI
-- Jinja server-rendered HTML
-- Neon Postgres
-- Serper API
-- Render web service
+- User login with bcrypt password hashing
+- Roles: `admin`, `manager`, `viewer`
+- Admin user management
+- Manager project, keyword, note, and refresh actions
+- Viewer read-only dashboards and reports
+- CSRF-protected forms
+- Session expiry after inactivity
+- Project dashboard, project detail pages, keyword search, pagination
+- Ranking trend reports, keyword history, SERP snapshots, CSV export
 
 ## Local Setup
-
-Create a virtual environment and install dependencies:
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-Edit `.env`:
+Create `.env` in the project root:
 
 ```text
 DATABASE_URL=your_neon_connection_string
 SERPER_API_KEY=your_serper_api_key
-APP_PASSWORD=your_dashboard_password
-SESSION_SECRET=a_long_random_secret
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=choose-a-strong-admin-password
+ADMIN_NAME=Admin
+SESSION_SECRET=a-long-random-secret
+SESSION_TIMEOUT_SECONDS=1800
 PORT=8000
-```
-
-Run the app:
-
-```bash
-uvicorn app.main:app --reload --port 8000
 ```
 
 Open:
 
 ```text
-http://127.0.0.1:8000
+http://127.0.0.1:8000/login
 ```
 
-## Render Setup
+The app creates database tables and migrations automatically on startup. The first admin user is created from `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `ADMIN_NAME` only if no user with that email exists.
 
-1. Push this folder to `https://github.com/ajaypalsingh24/googleranktracker.git`.
-2. Create a new Render Web Service from that GitHub repo.
-3. Use:
+## Render Settings
 
-```text
-Build Command: pip install -r requirements.txt
-Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+Build command:
+
+```bash
+pip install -r requirements.txt
 ```
 
-4. Add Render environment variables:
+Start command:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Environment variables:
 
 ```text
 DATABASE_URL=your_neon_connection_string
 SERPER_API_KEY=your_serper_api_key
-APP_PASSWORD=your_dashboard_password
-SESSION_SECRET=a_long_random_secret
+ADMIN_EMAIL=your_admin_email
+ADMIN_PASSWORD=your_first_admin_password
+ADMIN_NAME=Admin
+SESSION_SECRET=a-long-random-secret
+SESSION_TIMEOUT_SECONDS=1800
+PYTHON_VERSION=3.12.10
 ```
 
-The app creates database tables automatically on startup.
+Do not set `PORT`; Render supplies it automatically.
 
-## Features
+## Roles
 
-- Projects for domains
-- Keyword tracking
-- Manual keyword check
-- Refresh all keywords
-- Rank history storage
-- SERP result snapshots
-- Average position and Top 3/10/30/100 cards
-- Project notes
-- Simple password protection
+- `admin`: manage users plus all manager permissions
+- `manager`: create/edit projects, add keywords, run rank checks, add notes
+- `viewer`: view dashboards, projects, keywords, reports, competitors
 
-## Important
+## Database Changes
 
-Do not commit `.env` to GitHub. It contains private database credentials and API keys. Add those values inside Render's Environment tab instead.
+Migrations live in `migrations/`. The app records applied migrations in `schema_migrations`, so existing project, keyword, rank check, and SERP data are preserved.

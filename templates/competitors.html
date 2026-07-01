@@ -1,0 +1,24 @@
+{% extends "app_layout.html" %}
+{% block title %}Competitors - Google Rank Tracker{% endblock %}
+{% block content %}
+  <section class="page-heading">
+    <div><p class="eyebrow">Competitors</p><h1>Competitor tracking</h1></div>
+  </section>
+  <section class="project-card-grid wide">
+    {% for project in projects %}
+      <article class="project-card plain">
+        <span>{{ project.domain }}</span>
+        <strong>{{ project.name }}</strong>
+        {% if project.competitors %}
+          <ul>
+            {% for competitor in project.competitors %}
+              <li>{{ competitor }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <small>No competitors added.</small>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% endblock %}

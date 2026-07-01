@@ -1,0 +1,68 @@
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Keyword</th>
+        <th>Change</th>
+        <th>Latest Rank</th>
+        <th>Best Rank</th>
+        <th>First Rank</th>
+        <th>Search Volume</th>
+        <th>Last Updated</th>
+        <th>URL Found</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for keyword in keywords %}
+        <tr>
+          <td>
+            <div class="keyword-name">{{ keyword.phrase }}</div>
+            {% if keyword.tags %}<div class="tags">{{ keyword.tags|join(", ") }}</div>{% endif %}
+          </td>
+          <td>
+            {% if keyword.change is none %}<span class="flat">-</span>
+            {% elif keyword.change > 0 %}<span class="up">+{{ keyword.change }}</span>
+            {% elif keyword.change < 0 %}<span class="down">{{ keyword.change }}</span>
+            {% else %}<span class="flat">0</span>{% endif %}
+          </td>
+          <td>{{ keyword.position if keyword.position is not none else "Not found" }}</td>
+          <td>{{ keyword.best_position if keyword.best_position is not none else "-" }}</td>
+          <td>{{ keyword.first_position if keyword.first_position is not none else "-" }}</td>
+          <td>{{ keyword.search_volume or "-" }}</td>
+          <td>{{ keyword.checked_at.strftime("%d %b %Y, %I:%M %p") if keyword.checked_at else "-" }}</td>
+          <td>
+            {% if keyword.matched_url %}
+              <a href="{{ keyword.matched_url }}" target="_blank" rel="noreferrer">{{ keyword.matched_url|truncate(48) }}</a>
+            {% else %}
+              <span class="not-found">NOT FOUND</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-actions">
+              {% if can(current_user, 'manager') %}
+                <form class="loading-form" action="/keywords/{{ keyword.id }}/check" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                  <input type="hidden" name="project_id" value="{{ project.id }}" />
+                  <button type="submit">Check</button>
+                </form>
+              {% endif %}
+              {% if keyword.check_id %}
+                <a class="button-link ghost" href="/projects/{{ project.id }}?serp_check_id={{ keyword.check_id }}">SERP</a>
+              {% endif %}
+              {% if can(current_user, 'manager') %}
+                <form action="/keywords/{{ keyword.id }}/delete" method="post">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                  <input type="hidden" name="project_id" value="{{ project.id }}" />
+                  <button class="danger-btn" type="submit">Delete</button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="9" class="empty-row">No keywords found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

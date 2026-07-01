@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}Login - Google Rank Tracker{% endblock %}
+{% block body %}
+  <main class="login-screen">
+    <form class="login-panel" action="/login" method="post">
+      <div>
+        <p class="eyebrow">Private SEO workspace</p>
+        <h1>Google Rank Tracker</h1>
+        <p class="muted">Sign in to manage projects, rankings, reports, and users.</p>
+      </div>
+      <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
+      <button type="submit">Log in</button>
+      {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+    </form>
+  </main>
+{% endblock %}
