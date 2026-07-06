@@ -147,6 +147,7 @@ label { display: grid; gap: 7px; color: #344054; font-size: 13px; font-weight: 8
 }
 
 .project-switcher { width: min(420px, 100%); }
+.topbar-spacer { flex: 1; }
 .user-menu { display: flex; align-items: center; gap: 12px; text-align: right; }
 .user-menu span { display: block; color: var(--muted); font-size: 12px; text-transform: capitalize; }
 

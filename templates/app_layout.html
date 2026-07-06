@@ -32,15 +32,7 @@
 
     <div class="page">
       <header class="topbar">
-        <form class="project-switcher" action="/" method="get">
-          <select name="project_id" onchange="this.form.submit()" aria-label="Selected project">
-            {% for item in projects_nav %}
-              <option value="{{ item.id }}">{{ item.name }} - {{ item.domain }}</option>
-            {% else %}
-              <option>No projects yet</option>
-            {% endfor %}
-          </select>
-        </form>
+        <div class="topbar-spacer"></div>
         <div class="user-menu">
           <div>
             <strong>{{ current_user.name }}</strong>

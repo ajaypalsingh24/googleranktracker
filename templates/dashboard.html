@@ -5,7 +5,6 @@
     <div>
       <p class="eyebrow">https://opositive.io/</p>
       <h1>My dashboard</h1>
-      <p class="muted">All rank tracking projects in one SERPROBOT-style control surface.</p>
     </div>
     {% if can(current_user, 'manager') %}
       <a class="button-link" href="/projects">Add project</a>
@@ -65,7 +64,6 @@
                   {% endif %}
                   <a title="Open project" href="/projects/{{ item.id }}">↗</a>
                   <a title="Report" href="/reports?project_id={{ item.id }}">▦</a>
-                  <a title="Competitors" href="/competitors">◆</a>
                 </div>
               </td>
             </tr>
@@ -77,17 +75,4 @@
     </div>
   </section>
 
-  {% if project %}
-    <section class="last-check-panel">
-      <h2>Last Check</h2>
-      {% include "components/metric_cards.html" %}
-      <div class="panel">
-        <div class="panel-head">
-          <div><p class="eyebrow">Quick view</p><h2>{{ project.name }}</h2></div>
-          <a class="button-link ghost" href="/projects/{{ project.id }}">Open project</a>
-        </div>
-        {% include "components/keyword_table.html" %}
-      </div>
-    </section>
-  {% endif %}
 {% endblock %}
