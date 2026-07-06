@@ -28,3 +28,19 @@ document.querySelectorAll("[data-table-filter]").forEach((input) => {
     });
   });
 });
+
+document.querySelectorAll("[data-project-type-group]").forEach((group) => {
+  const form = group.closest("form");
+  if (!form) return;
+  const updateLocalFields = () => {
+    const selected = form.querySelector("input[name='project_type']:checked");
+    const isLocal = selected && selected.value === "local";
+    form.querySelectorAll(".local-only").forEach((field) => {
+      field.hidden = !isLocal;
+    });
+  };
+  group.querySelectorAll("input[name='project_type']").forEach((input) => {
+    input.addEventListener("change", updateLocalFields);
+  });
+  updateLocalFields();
+});

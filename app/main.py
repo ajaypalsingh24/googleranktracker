@@ -205,6 +205,7 @@ def create_project(
     csrf_token_value: str = Form(..., alias="csrf_token"),
     name: str = Form(...),
     domain: str = Form(...),
+    phrases: str = Form(""),
     project_type: str = Form("organic"),
     country: str = Form("India"),
     location: str = Form("India"),
@@ -242,6 +243,19 @@ def create_project(
             competitor_list,
         ),
     )
+    keyword_phrases = list(dict.fromkeys(clean_lines(phrases)))
+    if keyword_phrases:
+        with db.connect() as conn:
+            with conn.transaction():
+                for phrase in keyword_phrases:
+                    conn.execute(
+                        """
+                        insert into keywords (project_id, phrase)
+                        values (%s, %s)
+                        on conflict (project_id, phrase) do update set active = true
+                        """,
+                        (project["id"], phrase),
+                    )
     return redirect_to(f"/projects/{project['id']}", message="Project added")
 
 

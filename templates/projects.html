@@ -13,25 +13,73 @@
   </section>
 
   {% if can(current_user, 'manager') %}
-    <section class="panel">
-      <div class="panel-head"><div><p class="eyebrow">Add project</p><h2>Track a new domain</h2></div></div>
-      <form class="project-form" action="/projects" method="post">
+    <section class="panel new-project-panel">
+      <div class="panel-head"><div><p class="eyebrow">Add project</p><h2>Enter the details for your new project</h2></div></div>
+      <form class="project-form serprobot-project-form" action="/projects" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-        <input name="name" placeholder="Project name" required />
-        <input name="domain" placeholder="example.com" required />
-        <select name="project_type">
-          <option value="organic">Google Organic</option>
-          <option value="local">Google Local</option>
-        </select>
-        <input name="country" placeholder="Country" value="India" />
-        <input name="location" placeholder="Location" value="India" />
-        <input name="search_location" placeholder="Local search location, e.g. Koramangala Bengaluru" />
-        <input name="local_business_name" placeholder="Google local business name" />
-        <input name="gl" placeholder="gl" value="in" maxlength="2" />
-        <input name="hl" placeholder="hl" value="en" maxlength="5" />
-        <select name="device"><option>desktop</option><option>mobile</option></select>
-        <select name="check_frequency"><option>manual</option><option>daily</option><option>weekly</option></select>
-        <textarea name="competitors" rows="3" placeholder="Competitors, one per line"></textarea>
+        <input class="full project-title-input" name="name" placeholder="Project Name" required />
+        <input class="full" name="domain" placeholder="your-domain.com" required />
+
+        <div class="field-group full">
+          <label>Keywords</label>
+          <textarea name="phrases" rows="3" placeholder="Keyword"></textarea>
+          <small>Add one keyword per line. You can also add more after creating the project.</small>
+        </div>
+
+        <div class="field-group full">
+          <label>Google region</label>
+          <select name="gl">
+            <option value="us">Global / US (www.google.com)</option>
+            <option value="in" selected>India (www.google.co.in)</option>
+            <option value="gb">United Kingdom (www.google.co.uk)</option>
+            <option value="ca">Canada (www.google.ca)</option>
+            <option value="au">Australia (www.google.com.au)</option>
+          </select>
+        </div>
+
+        <details class="advanced-project-options full" open>
+          <summary>Advanced Options</summary>
+          <div class="advanced-body">
+            <div class="field-group full">
+              <label>Project type</label>
+              <div class="segmented-control" data-project-type-group>
+                <label>
+                  <input type="radio" name="project_type" value="organic" checked />
+                  <span>Google</span>
+                </label>
+                <label>
+                  <input type="radio" name="project_type" value="local" />
+                  <span>Google Local</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field-group full">
+              <label>Search device</label>
+              <div class="segmented-control device-control">
+                <label><input type="radio" name="device" value="desktop" checked /><span>Desktop</span></label>
+                <label><input type="radio" name="device" value="mobile" /><span>Phone</span></label>
+              </div>
+            </div>
+
+            <div class="field-group full local-only" hidden>
+              <label>Search location</label>
+              <input name="search_location" placeholder="Search location i.e. Zurich, Switzerland" />
+            </div>
+
+            <div class="field-group full local-only" hidden>
+              <label>Local results business name</label>
+              <input name="local_business_name" placeholder="Business name i.e. Avalon Hotel Paris" />
+            </div>
+
+            <input name="country" placeholder="Country" value="India" />
+            <input name="location" placeholder="Location" value="India" />
+            <input name="hl" placeholder="Language" value="en" maxlength="5" />
+            <select name="check_frequency"><option>manual</option><option>daily</option><option>weekly</option></select>
+            <textarea class="full" name="competitors" rows="3" placeholder="Competitors, one per line"></textarea>
+          </div>
+        </details>
+
         <button type="submit">Add project</button>
       </form>
     </section>
