@@ -30,7 +30,15 @@
             {% elif keyword.change < 0 %}<span class="down">{{ keyword.change }}</span>
             {% else %}<span class="flat">0</span>{% endif %}
           </td>
-          <td>{{ keyword.position if keyword.position is not none else "Not found" }}</td>
+          <td>
+            {% if keyword.position is not none %}
+              {{ keyword.position }}
+            {% elif keyword.checked_at %}
+              Not found
+            {% else %}
+              Not checked
+            {% endif %}
+          </td>
           <td>{{ keyword.best_position if keyword.best_position is not none else "-" }}</td>
           <td>{{ keyword.first_position if keyword.first_position is not none else "-" }}</td>
           <td>{{ keyword.search_volume or "-" }}</td>
@@ -38,8 +46,10 @@
           <td>
             {% if keyword.matched_url %}
               <a href="{{ keyword.matched_url }}" target="_blank" rel="noreferrer">{{ keyword.matched_url|truncate(48) }}</a>
-            {% else %}
+            {% elif keyword.checked_at %}
               <span class="not-found">NOT FOUND</span>
+            {% else %}
+              <span class="muted">Not checked</span>
             {% endif %}
           </td>
           <td>
