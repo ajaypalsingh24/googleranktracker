@@ -11,7 +11,7 @@
         <th>First</th>
         <th>Volume</th>
         <th>Updated</th>
-        <th>URL Found</th>
+        <th>URL / Business Found</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -46,6 +46,9 @@
           <td>
             {% if keyword.matched_url %}
               <a href="{{ keyword.matched_url }}" target="_blank" rel="noreferrer">{{ keyword.matched_url|truncate(48) }}</a>
+              {% if keyword.matched_title %}<small>{{ keyword.matched_title }}</small>{% endif %}
+            {% elif keyword.matched_title %}
+              <span class="matched-title">{{ keyword.matched_title }}</span>
             {% elif keyword.checked_at %}
               <span class="not-found">NOT FOUND</span>
             {% else %}

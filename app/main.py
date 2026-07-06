@@ -205,8 +205,11 @@ def create_project(
     csrf_token_value: str = Form(..., alias="csrf_token"),
     name: str = Form(...),
     domain: str = Form(...),
+    project_type: str = Form("organic"),
     country: str = Form("India"),
     location: str = Form("India"),
+    search_location: str = Form(""),
+    local_business_name: str = Form(""),
     gl: str = Form("in"),
     hl: str = Form("en"),
     device: str = Form("desktop"),
@@ -220,15 +223,18 @@ def create_project(
     competitor_list = clean_lines(competitors)
     project = db.execute(
         """
-        insert into projects (name, domain, country, location, gl, hl, device, check_frequency, competitors)
-        values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        insert into projects (name, domain, project_type, country, location, search_location, local_business_name, gl, hl, device, check_frequency, competitors)
+        values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         returning id
         """,
         (
             name.strip(),
             domain.strip(),
+            clean_project_type(project_type),
             country.strip(),
             location.strip(),
+            search_location.strip(),
+            local_business_name.strip(),
             gl.strip().lower(),
             hl.strip().lower(),
             device,
@@ -277,8 +283,11 @@ def edit_project(
     csrf_token_value: str = Form(..., alias="csrf_token"),
     name: str = Form(...),
     domain: str = Form(...),
+    project_type: str = Form("organic"),
     country: str = Form("India"),
     location: str = Form("India"),
+    search_location: str = Form(""),
+    local_business_name: str = Form(""),
     gl: str = Form("in"),
     hl: str = Form("en"),
     device: str = Form("desktop"),
@@ -292,7 +301,8 @@ def edit_project(
     db.execute(
         """
         update projects
-        set name = %s, domain = %s, country = %s, location = %s, gl = %s, hl = %s,
+        set name = %s, domain = %s, project_type = %s, country = %s, location = %s,
+            search_location = %s, local_business_name = %s, gl = %s, hl = %s,
             device = %s, check_frequency = %s, competitors = %s, updated_at = now()
         where id = %s
         returning id
@@ -300,8 +310,11 @@ def edit_project(
         (
             name.strip(),
             domain.strip(),
+            clean_project_type(project_type),
             country.strip(),
             location.strip(),
+            search_location.strip(),
+            local_business_name.strip(),
             gl.strip().lower(),
             hl.strip().lower(),
             device,
@@ -432,7 +445,7 @@ def export_csv(request: Request, project_id: str, date_from: date | None = None,
     rows = db.fetch_all(
         """
         with latest as (
-          select distinct on (keyword_id) keyword_id, position, previous_position, change, matched_url, checked_at
+          select distinct on (keyword_id) keyword_id, search_type, position, previous_position, change, matched_title, matched_url, checked_at
           from rank_checks
           where (%s::date is null or checked_at::date >= %s::date)
             and (%s::date is null or checked_at::date <= %s::date)
@@ -445,9 +458,9 @@ def export_csv(request: Request, project_id: str, date_from: date | None = None,
           select distinct on (keyword_id) keyword_id, position as first_position
           from rank_checks where position is not null order by keyword_id, checked_at asc
         )
-        select p.name as project, p.domain, k.phrase, latest.position, latest.previous_position,
+        select p.name as project, p.domain, k.phrase, latest.search_type, latest.position, latest.previous_position,
           latest.change, bests.best_position, firsts.first_position, k.search_volume,
-          latest.checked_at, latest.matched_url
+          latest.checked_at, latest.matched_title, latest.matched_url
         from keywords k
         join projects p on p.id = k.project_id
         left join latest on latest.keyword_id = k.id
@@ -465,6 +478,7 @@ def export_csv(request: Request, project_id: str, date_from: date | None = None,
             "project",
             "domain",
             "phrase",
+            "search_type",
             "position",
             "previous_position",
             "change",
@@ -472,6 +486,7 @@ def export_csv(request: Request, project_id: str, date_from: date | None = None,
             "first_position",
             "search_volume",
             "checked_at",
+            "matched_title",
             "matched_url",
         ],
     )
@@ -605,6 +620,10 @@ def clean_lines(value: str) -> list[str]:
     return [line.strip() for line in value.replace(",", "\n").splitlines() if line.strip()]
 
 
+def clean_project_type(value: str) -> str:
+    return "local" if value == "local" else "organic"
+
+
 def project_options() -> list[dict[str, Any]]:
     return db.fetch_all("select id, name, domain from projects order by name")
 
@@ -699,7 +718,7 @@ def keyword_summary_sql() -> str:
     return """
     with latest as (
       select distinct on (keyword_id)
-        keyword_id, id as check_id, position, previous_position, change, matched_url, result_count, checked_at
+        keyword_id, id as check_id, search_type, position, previous_position, change, matched_title, matched_url, result_count, checked_at
       from rank_checks
       where (%s::timestamptz is null or checked_at >= %s::timestamptz)
       order by keyword_id, checked_at desc
@@ -716,8 +735,8 @@ def keyword_summary_sql() -> str:
       where position is not null
       order by keyword_id, checked_at asc
     )
-    select k.*, latest.check_id, latest.position, latest.previous_position, latest.change,
-      latest.matched_url, latest.result_count, latest.checked_at, bests.best_position, firsts.first_position
+    select k.*, latest.check_id, latest.search_type, latest.position, latest.previous_position, latest.change,
+      latest.matched_title, latest.matched_url, latest.result_count, latest.checked_at, bests.best_position, firsts.first_position
     from keywords k
     left join latest on latest.keyword_id = k.id
     left join bests on bests.keyword_id = k.id
@@ -748,7 +767,7 @@ def project_history(project_id: str, date_from: date | None, date_to: date | Non
 def run_keyword_check(keyword_id: str) -> str:
     keyword = db.fetch_one(
         """
-        select k.*, p.domain, p.location, p.gl, p.hl
+        select k.*, p.domain, p.project_type, p.location, p.search_location, p.local_business_name, p.gl, p.hl
         from keywords k
         join projects p on p.id = k.project_id
         where k.id = %s
@@ -765,13 +784,15 @@ def run_keyword_check(keyword_id: str) -> str:
         with conn.transaction():
             check = conn.execute(
                 """
-                insert into rank_checks (keyword_id, position, matched_url, previous_position, change, result_count, raw_response)
-                values (%s, %s, %s, %s, %s, %s, %s)
+                insert into rank_checks (keyword_id, search_type, position, matched_title, matched_url, previous_position, change, result_count, raw_response)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id
                 """,
                 (
                     keyword_id,
+                    rank["search_type"],
                     rank["position"],
+                    rank["matched_title"],
                     rank["matched_url"],
                     previous_position,
                     change,

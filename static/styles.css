@@ -294,6 +294,7 @@ td a { color: var(--accent-strong); }
 .down { color: var(--danger); font-weight: 900; }
 .flat { color: var(--muted); font-weight: 900; }
 .not-found { color: var(--warn); font-weight: 900; }
+.matched-title { color: var(--ink); font-weight: 900; }
 .empty-row { padding: 28px; text-align: center; color: var(--muted); }
 
 .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }

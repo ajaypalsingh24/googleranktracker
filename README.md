@@ -14,6 +14,7 @@ FastAPI + Jinja rank tracking app using Serper, Neon Postgres, Render, and GitHu
 - Project dashboard, project detail pages, keyword search, pagination
 - Ranking trends, keyword history, SERP snapshots, CSV export
 - Ahrefs search-volume lookup on keyword add and refresh, with Semrush fallback
+- Google Organic and Google Local rank tracking modes
 
 ## Local Setup
 

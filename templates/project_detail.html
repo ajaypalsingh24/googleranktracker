@@ -10,11 +10,16 @@
     <div class="project-summary-block">
       <dl class="serp-meta-list">
         <div><dt>Project Name:</dt><dd>{{ project.name }} {% if can(current_user, 'manager') %}<a href="#edit-project">✎</a>{% endif %}</dd></div>
+        <div><dt>Project Type:</dt><dd>{{ "Google Local" if project.project_type == "local" else "Google Organic" }}</dd></div>
         <div><dt>Domain Name:</dt><dd>{{ project.domain }} <span class="hot">●</span></dd></div>
         <div><dt>Region:</dt><dd>{{ project.country or project.location }} <span class="hot">⌖</span> <span class="muted">google.{{ project.gl }}</span></dd></div>
         <div><dt>Language:</dt><dd>{{ project.hl }}</dd></div>
         <div><dt>Country:</dt><dd>{{ project.country or "Auto" }}</dd></div>
         <div><dt>Location:</dt><dd>{{ project.location }}</dd></div>
+        {% if project.project_type == "local" %}
+          <div><dt>Search Location:</dt><dd>{{ project.search_location or project.location }}</dd></div>
+          <div><dt>Local Business:</dt><dd>{{ project.local_business_name or "Add exact GBP name" }}</dd></div>
+        {% endif %}
         <div><dt>Device:</dt><dd>{{ project.device|capitalize }}</dd></div>
         <div><dt>Check Frequency:</dt><dd>{{ project.check_frequency }} {% if can(current_user, 'manager') %}<a href="#edit-project">✎</a>{% endif %}</dd></div>
         <div>
@@ -73,8 +78,11 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
         <label>Name<input name="name" value="{{ project.name }}" required /></label>
         <label>Domain<input name="domain" value="{{ project.domain }}" required /></label>
+        <label>Project Type<select name="project_type"><option value="organic" {{ 'selected' if project.project_type != 'local' else '' }}>Google Organic</option><option value="local" {{ 'selected' if project.project_type == 'local' else '' }}>Google Local</option></select></label>
         <label>Country<input name="country" value="{{ project.country }}" /></label>
         <label>Location<input name="location" value="{{ project.location }}" /></label>
+        <label>Local Search Location<input name="search_location" value="{{ project.search_location }}" placeholder="Koramangala Bengaluru" /></label>
+        <label>Local Business Name<input name="local_business_name" value="{{ project.local_business_name }}" placeholder="Exact Google Business Profile name" /></label>
         <label>Google Country<input name="gl" value="{{ project.gl }}" maxlength="2" /></label>
         <label>Language<input name="hl" value="{{ project.hl }}" maxlength="5" /></label>
         <label>Device<select name="device"><option {{ 'selected' if project.device == 'desktop' else '' }}>desktop</option><option {{ 'selected' if project.device == 'mobile' else '' }}>mobile</option></select></label>
