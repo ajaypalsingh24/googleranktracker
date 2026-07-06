@@ -11,34 +11,6 @@
     {% endif %}
   </section>
 
-  <section class="dashboard-stats" aria-label="Account summary">
-    <article>
-      <span>All Projects</span>
-      <strong>{{ totals.project_count }}</strong>
-      <small>{{ totals.active_keyword_count }} active keywords</small>
-    </article>
-    <article>
-      <span>Average Position</span>
-      <strong>{{ totals.average_position or "-" }}</strong>
-      <small>{{ totals.checked_count }} checked</small>
-    </article>
-    <article>
-      <span>Top 3</span>
-      <strong>{{ totals.top3_count }}</strong>
-      <small>{{ totals.top10_count }} keywords in Top 10</small>
-    </article>
-    <article>
-      <span>Top 20</span>
-      <strong>{{ totals.top20_count }}</strong>
-      <small>{{ totals.outside_top20_count }} outside Top 20</small>
-    </article>
-    <article>
-      <span>Needs Check</span>
-      <strong>{{ totals.unchecked_count }}</strong>
-      <small>Last check: {{ totals.latest_checked_at.strftime("%d %b, %I:%M %p") if totals.latest_checked_at else "No checks yet" }}</small>
-    </article>
-  </section>
-
   <section class="project-board">
     <div class="project-board-tools">
       <form class="serp-filter" action="/" method="get">
