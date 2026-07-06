@@ -415,50 +415,11 @@ def keywords_page(request: Request):
 
 
 @app.get("/reports", response_class=HTMLResponse)
-def reports_page(
-    request: Request,
-    project_id: str | None = None,
-    date_from: date | None = None,
-    date_to: date | None = None,
-    keyword_id: str | None = None,
-):
-    projects = project_options()
-    project = select_project(projects, project_id)
-    history = []
-    keyword_history = []
-    keywords = []
-    if project:
-        history = project_history(str(project["id"]), date_from, date_to)
-        keywords = db.fetch_all("select id, phrase from keywords where project_id = %s order by phrase", (project["id"],))
-        if keyword_id:
-            keyword_history = db.fetch_all(
-                """
-                select rc.*, k.phrase
-                from rank_checks rc
-                join keywords k on k.id = rc.keyword_id
-                where k.id = %s
-                  and (%s::date is null or rc.checked_at::date >= %s::date)
-                  and (%s::date is null or rc.checked_at::date <= %s::date)
-                order by rc.checked_at desc
-                limit 100
-                """,
-                (keyword_id, date_from, date_from, date_to, date_to),
-            )
-    return render(
-        request,
-        "reports.html",
-        {
-            "active_nav": "reports",
-            "projects": projects,
-            "project": project,
-            "history": history,
-            "keywords": keywords,
-            "keyword_history": keyword_history,
-            "keyword_id": keyword_id,
-            "date_from": date_from,
-            "date_to": date_to,
-        },
-    )
+def reports_page(request: Request):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+    return RedirectResponse("/", status_code=303)
 
 
 @app.get("/reports/export.csv")

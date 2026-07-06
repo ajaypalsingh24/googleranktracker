@@ -34,7 +34,6 @@
 
     <div class="project-action-grid">
       <a class="button-link ghost" href="/reports/export.csv?project_id={{ project.id }}">Export Data (CSV)</a>
-      <a class="button-link ghost" href="/reports?project_id={{ project.id }}">View Report</a>
       {% if can(current_user, 'manager') %}
         <a class="button-link ghost" href="#add-keywords">Add keywords</a>
         <form class="loading-form" action="/projects/{{ project.id }}/check-all" method="post">

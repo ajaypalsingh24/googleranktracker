@@ -63,7 +63,6 @@
               {% endif %}
               {% if keyword.check_id %}
                 <a title="View SERP" href="/projects/{{ project.id }}?serp_check_id={{ keyword.check_id }}">⌕</a>
-                <a title="Report" href="/reports?project_id={{ project.id }}&keyword_id={{ keyword.id }}">▥</a>
               {% endif %}
               {% if can(current_user, 'manager') %}
                 <form action="/keywords/{{ keyword.id }}/delete" method="post">
