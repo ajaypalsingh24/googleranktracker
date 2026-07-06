@@ -12,8 +12,8 @@ FastAPI + Jinja rank tracking app using Serper, Neon Postgres, Render, and GitHu
 - CSRF-protected forms
 - Session expiry after inactivity
 - Project dashboard, project detail pages, keyword search, pagination
-- Ranking trend reports, keyword history, SERP snapshots, CSV export
-- Semrush search-volume lookup on keyword add and refresh
+- Ranking trends, keyword history, SERP snapshots, CSV export
+- Ahrefs search-volume lookup on keyword add and refresh, with Semrush fallback
 
 ## Local Setup
 
@@ -29,6 +29,7 @@ Create `.env` in the project root:
 ```text
 DATABASE_URL=your_neon_connection_string
 SERPER_API_KEY=your_serper_api_key
+AHREFS_API_KEY=your_ahrefs_api_key
 SEMRUSH_API_KEY=your_semrush_api_key
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=choose-a-strong-admin-password
@@ -65,6 +66,7 @@ Environment variables:
 ```text
 DATABASE_URL=your_neon_connection_string
 SERPER_API_KEY=your_serper_api_key
+AHREFS_API_KEY=your_ahrefs_api_key
 SEMRUSH_API_KEY=your_semrush_api_key
 ADMIN_EMAIL=your_admin_email
 ADMIN_PASSWORD=your_first_admin_password
