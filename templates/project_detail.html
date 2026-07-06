@@ -41,6 +41,10 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
           <button class="ghost" type="submit">Refresh all keywords</button>
         </form>
+        <form class="loading-form" action="/projects/{{ project.id }}/search-volumes" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+          <button class="ghost" type="submit">Refresh search volumes</button>
+        </form>
       {% endif %}
       <a class="button-link ghost" href="/">Back to dashboard</a>
     </div>

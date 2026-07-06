@@ -32,6 +32,7 @@ from app.security import (
     verify_password,
 )
 from app.serper import check_keyword_rank
+from app.semrush import fetch_keyword_volumes, normalize_database
 
 load_dotenv()
 
@@ -327,12 +328,17 @@ def create_keyword(
     verify_csrf(request, csrf_token_value)
     tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
     unique_phrases = list(dict.fromkeys(clean_lines(phrases)))
-    volume = int(search_volume) if search_volume.strip().isdigit() else None
     if not unique_phrases:
         return redirect_to(f"/projects/{project_id}", message="Add at least one keyword")
+    project = db.fetch_one("select gl, device from projects where id = %s", (project_id,))
+    manual_volume = int(search_volume) if search_volume.strip().isdigit() else None
+    volume_map = {}
+    if manual_volume is None and project:
+        volume_map = fetch_keyword_volumes(unique_phrases, normalize_database(project["gl"], project["device"]))
     with db.connect() as conn:
         with conn.transaction():
             for phrase in unique_phrases:
+                phrase_volume = manual_volume if manual_volume is not None else volume_map.get(phrase.lower())
                 conn.execute(
                     """
                     insert into keywords (project_id, phrase, tags, search_volume)
@@ -340,10 +346,21 @@ def create_keyword(
                     on conflict (project_id, phrase) do update
                     set active = true, tags = excluded.tags, search_volume = coalesce(excluded.search_volume, keywords.search_volume)
                     """,
-                    (project_id, phrase, tag_list, volume),
+                    (project_id, phrase, tag_list, phrase_volume),
                 )
     label = "keyword" if len(unique_phrases) == 1 else "keywords"
-    return redirect_to(f"/projects/{project_id}", message=f"Added {len(unique_phrases)} {label}")
+    volume_message = f" with {len(volume_map)} Semrush volumes" if volume_map else ""
+    return redirect_to(f"/projects/{project_id}", message=f"Added {len(unique_phrases)} {label}{volume_message}")
+
+
+@app.post("/projects/{project_id}/search-volumes")
+def refresh_search_volumes(request: Request, project_id: str, csrf_token_value: str = Form(..., alias="csrf_token")):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    updated = update_project_search_volumes(project_id)
+    return redirect_to(f"/projects/{project_id}", message=f"Updated {updated} Semrush search volumes")
 
 
 @app.post("/projects/{project_id}/notes")
@@ -833,6 +850,26 @@ def run_keyword_check(keyword_id: str) -> str:
                     (check["id"], item["position"], item["title"], item["link"], item["display_link"], item["snippet"]),
                 )
     return str(check["id"])
+
+
+def update_project_search_volumes(project_id: str) -> int:
+    project = db.fetch_one("select gl, device from projects where id = %s", (project_id,))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    keywords = db.fetch_all("select id, phrase from keywords where project_id = %s and active = true order by created_at asc", (project_id,))
+    volume_map = fetch_keyword_volumes([keyword["phrase"] for keyword in keywords], normalize_database(project["gl"], project["device"]))
+    if not volume_map:
+        return 0
+    updated = 0
+    with db.connect() as conn:
+        with conn.transaction():
+            for keyword in keywords:
+                volume = volume_map.get(keyword["phrase"].lower())
+                if volume is None:
+                    continue
+                conn.execute("update keywords set search_volume = %s where id = %s", (volume, keyword["id"]))
+                updated += 1
+    return updated
 
 
 def empty_metrics() -> dict[str, Any]:
