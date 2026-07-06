@@ -1,54 +1,93 @@
 {% extends "app_layout.html" %}
 {% block title %}Dashboard - Google Rank Tracker{% endblock %}
 {% block content %}
-  <section class="page-heading">
+  <section class="page-heading dashboard-heading">
     <div>
-      <p class="eyebrow">Overview</p>
-      <h1>Dashboard</h1>
+      <p class="eyebrow">https://opositive.io/</p>
+      <h1>My dashboard</h1>
+      <p class="muted">All rank tracking projects in one SERPROBOT-style control surface.</p>
     </div>
-    {% if project and can(current_user, 'manager') %}
-      <form class="loading-form" action="/projects/{{ project.id }}/check-all" method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-        <button type="submit">Refresh all rankings</button>
-      </form>
+    {% if can(current_user, 'manager') %}
+      <a class="button-link" href="/projects">Add project</a>
     {% endif %}
   </section>
 
-  {% include "components/metric_cards.html" %}
-
-  <section class="split-grid">
-    <div class="panel">
-      <div class="panel-head">
-        <div><p class="eyebrow">Projects</p><h2>Tracked websites</h2></div>
-        <a class="button-link ghost" href="/projects">View all</a>
-      </div>
-      <div class="project-card-grid">
-        {% for item in projects %}
-          <a class="project-card" href="/projects/{{ item.id }}">
-            <span>{{ item.domain }}</span>
-            <strong>{{ item.name }}</strong>
-            <small>{{ item.active_keyword_count }} active keywords</small>
-            <b>{{ item.average_position or "-" }}</b>
-          </a>
-        {% else %}
-          <p class="muted">Create your first project to start tracking rankings.</p>
-        {% endfor %}
-      </div>
+  <section class="project-board">
+    <div class="project-board-tools">
+      <form class="serp-filter" action="/" method="get">
+        <input data-table-filter="#project-table" placeholder="Filter Projects" />
+        <button class="ghost" type="button">Go!</button>
+      </form>
     </div>
-    <div class="panel">
-      <p class="eyebrow">Ranking trend</p>
-      <h2>{{ project.name if project else "No project selected" }}</h2>
-      {% include "components/history_chart.html" %}
+
+    <div class="serp-table-wrap">
+      <table id="project-table" class="serp-table project-list-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" aria-label="Select all projects" /></th>
+            <th>#</th>
+            <th>Project Name</th>
+            <th>URL</th>
+            <th>Region</th>
+            <th>#Keywords</th>
+            <th>Frequency</th>
+            <th>Updated</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in projects %}
+            <tr>
+              <td><input type="checkbox" aria-label="Select {{ item.name }}" /></td>
+              <td>{{ loop.index }}</td>
+              <td>
+                <a class="table-project-link" href="/projects/{{ item.id }}">{{ item.name }}</a>
+                <span class="project-badges">▯ ◉</span>
+              </td>
+              <td>{{ item.domain }}</td>
+              <td>
+                <strong>{{ item.country or item.location }}</strong>
+                <small>{{ item.location }} (google.{{ item.gl }})</small>
+              </td>
+              <td>
+                <strong class="hot">{{ item.keyword_count }}</strong>
+                <span>( <span class="good">{{ item.top3_count }}</span> / {{ item.top10_count }} / <span class="bad">{{ item.not_found_count }}</span> )</span>
+              </td>
+              <td>{{ item.check_frequency }}</td>
+              <td>{{ item.latest_checked_at.strftime("%Y-%m-%d %H:%M") if item.latest_checked_at else item.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>
+              <td>
+                <div class="icon-actions">
+                  {% if can(current_user, 'manager') %}
+                    <form class="loading-form" action="/projects/{{ item.id }}/check-all" method="post">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+                      <button title="Refresh rankings" type="submit">⟳</button>
+                    </form>
+                  {% endif %}
+                  <a title="Open project" href="/projects/{{ item.id }}">↗</a>
+                  <a title="Report" href="/reports?project_id={{ item.id }}">▦</a>
+                  <a title="Competitors" href="/competitors">◆</a>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="9" class="empty-row">No projects yet. Add a project to start tracking rankings.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </section>
 
   {% if project %}
-    <section class="panel">
-      <div class="panel-head">
-        <div><p class="eyebrow">Latest keywords</p><h2>{{ project.name }}</h2></div>
-        <a class="button-link ghost" href="/projects/{{ project.id }}">Open project</a>
+    <section class="last-check-panel">
+      <h2>Last Check</h2>
+      {% include "components/metric_cards.html" %}
+      <div class="panel">
+        <div class="panel-head">
+          <div><p class="eyebrow">Quick view</p><h2>{{ project.name }}</h2></div>
+          <a class="button-link ghost" href="/projects/{{ project.id }}">Open project</a>
+        </div>
+        {% include "components/keyword_table.html" %}
       </div>
-      {% include "components/keyword_table.html" %}
     </section>
   {% endif %}
 {% endblock %}

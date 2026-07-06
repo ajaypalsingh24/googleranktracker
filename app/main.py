@@ -16,6 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response, Streamin
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from psycopg.types.json import Jsonb
+from psycopg.errors import UniqueViolation
 from starlette.middleware.sessions import SessionMiddleware
 
 from app import db
@@ -104,11 +105,48 @@ def login(request: Request, email: str = Form(...), password: str = Form(...)):
     return RedirectResponse("/", status_code=303)
 
 
+@app.post("/register")
+def register(request: Request, name: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    if len(password) < 8:
+        return templates.TemplateResponse(
+            "auth/login.html",
+            {"request": request, "error": "Password must be at least 8 characters"},
+            status_code=400,
+        )
+    try:
+        user = db.execute(
+            """
+            insert into users (email, name, password_hash, role)
+            values (%s, %s, %s, 'manager')
+            returning *
+            """,
+            (email.strip().lower(), name.strip(), hash_password(password)),
+        )
+    except UniqueViolation:
+        return templates.TemplateResponse(
+            "auth/login.html",
+            {"request": request, "error": "An account with this email already exists"},
+            status_code=400,
+        )
+    login_user(request, user)
+    return RedirectResponse("/", status_code=303)
+
+
 @app.post("/logout")
 def logout(request: Request, csrf_token_value: str = Form(..., alias="csrf_token")):
     verify_csrf(request, csrf_token_value)
     logout_user(request)
     return RedirectResponse("/login", status_code=303)
+
+
+@app.post("/theme")
+def set_theme(request: Request, theme: str = Form(...), csrf_token_value: str = Form(..., alias="csrf_token")):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    request.session["theme"] = theme if theme in {"dark", "red", "blue"} else "dark"
+    return RedirectResponse(request.headers.get("referer", "/"), status_code=303)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -625,11 +663,15 @@ def project_cards() -> list[dict[str, Any]]:
         select p.*,
           count(k.id)::int as keyword_count,
           count(k.id) filter (where k.active)::int as active_keyword_count,
-          round(avg(latest.position)::numeric, 2)::float as average_position
+          round(avg(latest.position)::numeric, 2)::float as average_position,
+          count(k.id) filter (where latest.position <= 3)::int as top3_count,
+          count(k.id) filter (where latest.position <= 10)::int as top10_count,
+          count(k.id) filter (where latest.position is null)::int as not_found_count,
+          max(latest.checked_at) as latest_checked_at
         from projects p
         left join keywords k on k.project_id = p.id
         left join lateral (
-          select rc.position from rank_checks rc where rc.keyword_id = k.id order by rc.checked_at desc limit 1
+          select rc.position, rc.checked_at from rank_checks rc where rc.keyword_id = k.id order by rc.checked_at desc limit 1
         ) latest on true
         group by p.id
         order by p.created_at desc

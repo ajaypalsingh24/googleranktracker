@@ -1,17 +1,39 @@
 {% extends "layout.html" %}
 {% block title %}Login - Google Rank Tracker{% endblock %}
 {% block body %}
-  <main class="login-screen">
-    <form class="login-panel" action="/login" method="post">
-      <div>
-        <p class="eyebrow">Private SEO workspace</p>
-        <h1>Google Rank Tracker</h1>
-        <p class="muted">Sign in to manage projects, rankings, reports, and users.</p>
+  <main class="auth-screen">
+    <section class="auth-story">
+      <p class="auth-kicker">https://opositive.io/</p>
+      <h1>Rank intelligence for every search project.</h1>
+      <p>Track Google visibility, monitor competitors, and keep keyword reporting in one clean workspace.</p>
+      <ul>
+        <li>Project dashboards inspired by SERPROBOT</li>
+        <li>Bulk keyword workflows with Serper ranking checks</li>
+        <li>Role-based team access for SEO operations</li>
+      </ul>
+    </section>
+
+    <section class="auth-card">
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" type="button" data-auth-tab="login">Login</button>
+        <button class="auth-tab" type="button" data-auth-tab="register">Register</button>
       </div>
-      <label>Email<input name="email" type="email" autocomplete="email" required /></label>
-      <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
-      <button type="submit">Log in</button>
+
+      <form class="auth-form active" data-auth-panel="login" action="/login" method="post">
+        <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required /></label>
+        <button type="submit">Log in</button>
+      </form>
+
+      <form class="auth-form" data-auth-panel="register" action="/register" method="post">
+        <label>Name<input name="name" autocomplete="name" required /></label>
+        <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+        <label>Password<input name="password" type="password" autocomplete="new-password" minlength="8" required /></label>
+        <button class="dark-button" type="submit">Create Account</button>
+        <p class="muted">Your projects and ranking workflows stay tied to your account.</p>
+      </form>
+
       {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
-    </form>
+    </section>
   </main>
 {% endblock %}

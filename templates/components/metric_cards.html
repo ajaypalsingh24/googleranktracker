@@ -1,10 +1,10 @@
 <section class="metric-grid">
-  <article><span>Average Position</span><strong>{{ metrics.average_position or "-" }}</strong><small>{{ metrics.checked }} checked</small></article>
-  <article><span>Improved</span><strong>{{ metrics.improved }}</strong><small>Moved up</small></article>
-  <article><span>Declined</span><strong>{{ metrics.declined }}</strong><small>Moved down</small></article>
-  <article><span>Top 3</span><strong>{{ metrics.top3 }}</strong><small>Keywords</small></article>
-  <article><span>Top 10</span><strong>{{ metrics.top10 }}</strong><small>Keywords</small></article>
-  <article><span>Top 30</span><strong>{{ metrics.top30 }}</strong><small>Keywords</small></article>
-  <article><span>Top 100</span><strong>{{ metrics.top100 }}</strong><small>Keywords</small></article>
-  <article><span>Not Found</span><strong>{{ metrics.not_found }}</strong><small>Outside top 100</small></article>
+  <article><span>▥ Average Position</span><strong>{{ metrics.average_position or "-" }}</strong><small>{{ metrics.checked }} checked</small></article>
+  <article><span>⬆ Improved</span><strong class="good-text">{{ metrics.improved }}</strong><small>/{{ metrics.total }} keywords</small></article>
+  <article><span>⬇ Declined</span><strong class="bad-text">{{ metrics.declined }}</strong><small>/{{ metrics.total }} keywords</small></article>
+  <article><span>♥ Top 3</span><strong class="bad-text">{{ metrics.top3 }}</strong><small>/{{ metrics.total }} keywords</small></article>
+  <article><span>✔ Top 10</span><strong class="bad-text">{{ metrics.top10 }}</strong><small>/{{ metrics.total }} keywords</small></article>
+  <article><span>▲ Top 30</span><strong>{{ metrics.top30 }}</strong><small>/{{ metrics.total }} keywords</small></article>
+  <article><span>▣ Top 100</span><strong>{{ metrics.top100 }}</strong><small>/{{ metrics.total }} keywords</small></article>
+  <article><span>∅ Not Found</span><strong>{{ metrics.not_found }}</strong><small>Outside top 100</small></article>
 </section>

@@ -3,9 +3,20 @@
   <div class="app-frame">
     <aside class="sidebar">
       <a class="brand" href="/">
-        <span class="brand-mark">R</span>
-        <span>Rank Tracker</span>
+        <span class="brand-mark">O+</span>
+        <span>opositive.io</span>
       </a>
+      <form class="theme-form" action="/theme" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <label>
+          Theme
+          <select name="theme" onchange="this.form.submit()">
+            <option value="dark" {{ 'selected' if request.session.get('theme', 'dark') == 'dark' else '' }}>Dark</option>
+            <option value="red" {{ 'selected' if request.session.get('theme') == 'red' else '' }}>Red</option>
+            <option value="blue" {{ 'selected' if request.session.get('theme') == 'blue' else '' }}>Blue</option>
+          </select>
+        </label>
+      </form>
       <nav class="nav-list">
         <a class="{{ 'active' if active_nav == 'dashboard' else '' }}" href="/">Dashboard</a>
         <a class="{{ 'active' if active_nav == 'projects' else '' }}" href="/projects">Projects</a>

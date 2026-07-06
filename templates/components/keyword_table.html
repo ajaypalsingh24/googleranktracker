@@ -2,13 +2,15 @@
   <table>
     <thead>
       <tr>
+        <th><input type="checkbox" aria-label="Select all keywords" /></th>
+        <th>#</th>
         <th>Keyword</th>
         <th>Change</th>
-        <th>Latest Rank</th>
-        <th>Best Rank</th>
-        <th>First Rank</th>
-        <th>Search Volume</th>
-        <th>Last Updated</th>
+        <th>Latest</th>
+        <th>Best</th>
+        <th>First</th>
+        <th>Volume</th>
+        <th>Updated</th>
         <th>URL Found</th>
         <th>Actions</th>
       </tr>
@@ -16,6 +18,8 @@
     <tbody>
       {% for keyword in keywords %}
         <tr>
+          <td><input type="checkbox" aria-label="Select {{ keyword.phrase }}" /></td>
+          <td>{{ loop.index }}</td>
           <td>
             <div class="keyword-name">{{ keyword.phrase }}</div>
             {% if keyword.tags %}<div class="tags">{{ keyword.tags|join(", ") }}</div>{% endif %}
@@ -48,20 +52,21 @@
                 </form>
               {% endif %}
               {% if keyword.check_id %}
-                <a class="button-link ghost" href="/projects/{{ project.id }}?serp_check_id={{ keyword.check_id }}">SERP</a>
+                <a title="View SERP" href="/projects/{{ project.id }}?serp_check_id={{ keyword.check_id }}">⌕</a>
+                <a title="Report" href="/reports?project_id={{ project.id }}&keyword_id={{ keyword.id }}">▥</a>
               {% endif %}
               {% if can(current_user, 'manager') %}
                 <form action="/keywords/{{ keyword.id }}/delete" method="post">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
                   <input type="hidden" name="project_id" value="{{ project.id }}" />
-                  <button class="danger-btn" type="submit">Delete</button>
+                  <button class="danger-btn" title="Delete" type="submit">⌫</button>
                 </form>
               {% endif %}
             </div>
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="9" class="empty-row">No keywords found.</td></tr>
+        <tr><td colspan="11" class="empty-row">No keywords found.</td></tr>
       {% endfor %}
     </tbody>
   </table>

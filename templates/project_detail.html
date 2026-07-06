@@ -1,70 +1,88 @@
 {% extends "app_layout.html" %}
 {% block title %}{{ project.name }} - Google Rank Tracker{% endblock %}
 {% block content %}
-  <section class="project-hero">
-    <div>
-      <p class="eyebrow">Project detail</p>
-      <h1>{{ project.name }}</h1>
-      <p>{{ project.domain }}</p>
+  <section class="project-detail-header">
+    <div class="project-detail-logo">
+      <span>OPOSITIVE</span>
+      <small>Rank Tracker</small>
     </div>
-    {% if can(current_user, 'manager') %}
-      <form class="loading-form" action="/projects/{{ project.id }}/check-all" method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-        <button type="submit">Refresh rankings</button>
-      </form>
-    {% endif %}
-  </section>
 
-  {% include "components/metric_cards.html" %}
+    <div class="project-summary-block">
+      <dl class="serp-meta-list">
+        <div><dt>Project Name:</dt><dd>{{ project.name }} {% if can(current_user, 'manager') %}<a href="#edit-project">✎</a>{% endif %}</dd></div>
+        <div><dt>Domain Name:</dt><dd>{{ project.domain }} <span class="hot">●</span></dd></div>
+        <div><dt>Region:</dt><dd>{{ project.country or project.location }} <span class="hot">⌖</span> <span class="muted">google.{{ project.gl }}</span></dd></div>
+        <div><dt>Language:</dt><dd>{{ project.hl }}</dd></div>
+        <div><dt>Country:</dt><dd>{{ project.country or "Auto" }}</dd></div>
+        <div><dt>Location:</dt><dd>{{ project.location }}</dd></div>
+        <div><dt>Device:</dt><dd>{{ project.device|capitalize }}</dd></div>
+        <div><dt>Check Frequency:</dt><dd>{{ project.check_frequency }} {% if can(current_user, 'manager') %}<a href="#edit-project">✎</a>{% endif %}</dd></div>
+        <div>
+          <dt>Competitors:</dt>
+          <dd>
+            {% if project.competitors %}
+              {% for competitor in project.competitors %}
+                <a class="competitor-pill" href="{{ competitor if competitor[:4] == 'http' else 'https://' ~ competitor }}" target="_blank" rel="noreferrer">{{ competitor }}</a>
+              {% endfor %}
+            {% else %}
+              <span class="muted">No competitor URLs</span>
+            {% endif %}
+          </dd>
+        </div>
+      </dl>
+    </div>
 
-  <section class="detail-grid">
-    <div class="panel">
-      <div class="panel-head"><div><p class="eyebrow">Settings</p><h2>Project information</h2></div></div>
+    <div class="project-action-grid">
+      <a class="button-link ghost" href="/reports/export.csv?project_id={{ project.id }}">Export Data (CSV)</a>
+      <a class="button-link ghost" href="/reports?project_id={{ project.id }}">View Report</a>
       {% if can(current_user, 'manager') %}
-        <form class="project-form compact" action="/projects/{{ project.id }}/edit" method="post">
+        <a class="button-link ghost" href="#add-keywords">Add keywords</a>
+        <form class="loading-form" action="/projects/{{ project.id }}/check-all" method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-          <label>Name<input name="name" value="{{ project.name }}" required /></label>
-          <label>Domain<input name="domain" value="{{ project.domain }}" required /></label>
-          <label>Country<input name="country" value="{{ project.country }}" /></label>
-          <label>Location<input name="location" value="{{ project.location }}" /></label>
-          <label>Google Country<input name="gl" value="{{ project.gl }}" maxlength="2" /></label>
-          <label>Language<input name="hl" value="{{ project.hl }}" maxlength="5" /></label>
-          <label>Device<select name="device"><option {{ 'selected' if project.device == 'desktop' else '' }}>desktop</option><option {{ 'selected' if project.device == 'mobile' else '' }}>mobile</option></select></label>
-          <label>Frequency<select name="check_frequency"><option {{ 'selected' if project.check_frequency == 'manual' else '' }}>manual</option><option {{ 'selected' if project.check_frequency == 'daily' else '' }}>daily</option><option {{ 'selected' if project.check_frequency == 'weekly' else '' }}>weekly</option></select></label>
-          <label class="full">Competitors<textarea name="competitors" rows="4">{{ project.competitors|join("\n") if project.competitors else "" }}</textarea></label>
-          <button type="submit">Save project</button>
+          <button class="ghost" type="submit">Refresh all keywords</button>
         </form>
-      {% else %}
-        <dl class="meta-list">
-          <div><dt>Country</dt><dd>{{ project.country }}</dd></div>
-          <div><dt>Language</dt><dd>{{ project.hl }}</dd></div>
-          <div><dt>Location</dt><dd>{{ project.location }}</dd></div>
-          <div><dt>Device</dt><dd>{{ project.device }}</dd></div>
-          <div><dt>Frequency</dt><dd>{{ project.check_frequency }}</dd></div>
-          <div><dt>Competitors</dt><dd>{{ project.competitors|join(", ") if project.competitors else "-" }}</dd></div>
-        </dl>
       {% endif %}
-    </div>
-
-    <div class="panel">
-      <p class="eyebrow">Reports</p>
-      <h2>Trend</h2>
-      {% include "components/history_chart.html" %}
-      <a class="button-link ghost" href="/reports?project_id={{ project.id }}">Open reports</a>
+      <a class="button-link ghost" href="/">Back to dashboard</a>
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-head">
+  <section class="last-check-panel">
+    <h2>Last Check</h2>
+    {% include "components/metric_cards.html" %}
+  </section>
+
+  {% if can(current_user, 'manager') %}
+    <section id="edit-project" class="panel edit-project-panel">
+      <div class="panel-head"><div><p class="eyebrow">Edit project</p><h2>Project fields</h2></div></div>
+      <form class="project-form compact" action="/projects/{{ project.id }}/edit" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <label>Name<input name="name" value="{{ project.name }}" required /></label>
+        <label>Domain<input name="domain" value="{{ project.domain }}" required /></label>
+        <label>Country<input name="country" value="{{ project.country }}" /></label>
+        <label>Location<input name="location" value="{{ project.location }}" /></label>
+        <label>Google Country<input name="gl" value="{{ project.gl }}" maxlength="2" /></label>
+        <label>Language<input name="hl" value="{{ project.hl }}" maxlength="5" /></label>
+        <label>Device<select name="device"><option {{ 'selected' if project.device == 'desktop' else '' }}>desktop</option><option {{ 'selected' if project.device == 'mobile' else '' }}>mobile</option></select></label>
+        <label>Frequency<select name="check_frequency"><option {{ 'selected' if project.check_frequency == 'manual' else '' }}>manual</option><option {{ 'selected' if project.check_frequency == 'daily' else '' }}>daily</option><option {{ 'selected' if project.check_frequency == 'weekly' else '' }}>weekly</option></select></label>
+        <label class="full">Competitor URLs<textarea name="competitors" rows="4">{{ project.competitors|join("\n") if project.competitors else "" }}</textarea></label>
+        <button type="submit">Save project</button>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="panel keyword-section">
+    <div class="keyword-toolbar">
       <div><p class="eyebrow">Keywords</p><h2>{{ total_keywords }} tracked keywords</h2></div>
-      <form class="search-row small" action="/projects/{{ project.id }}" method="get">
-        <input name="q" value="{{ q }}" placeholder="Search keywords" />
-        <button class="ghost" type="submit">Filter</button>
+      <form class="serp-filter" action="/projects/{{ project.id }}" method="get">
+        <input name="q" value="{{ q }}" placeholder="Filter String" />
+        <button class="ghost" type="submit">Go!</button>
+        <label class="radio-inline"><input type="radio" checked /> Keyword</label>
+        <label class="radio-inline"><input type="radio" /> URL</label>
       </form>
     </div>
 
     {% if can(current_user, 'manager') %}
-      <form class="keyword-form" action="/projects/{{ project.id }}/keywords" method="post">
+      <form id="add-keywords" class="keyword-form" action="/projects/{{ project.id }}/keywords" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
         <textarea name="phrases" rows="4" placeholder="Add keywords, one per line" required></textarea>
         <input name="tags" placeholder="Tags, comma separated" />
@@ -82,33 +100,42 @@
     </div>
   </section>
 
-  <section class="detail-grid">
-    <div class="panel">
-      <div class="panel-head"><div><p class="eyebrow">SERP snapshot</p><h2>{{ serp_keyword.phrase if serp_keyword else "Select a keyword" }}</h2></div></div>
+  <section class="serp-summary-grid">
+    <div class="panel last-serp-summary">
+      <h2>Last check summary:</h2>
+      {% if serp_keyword %}
+        <p><span>Keyword:</span> {{ serp_keyword.phrase }}</p>
+      {% endif %}
       <ol class="serp-list">
         {% for result in serp_results %}
-          <li><a href="{{ result.link }}" target="_blank" rel="noreferrer">{{ result.title or result.link }}</a><p>{{ result.display_link or result.link }}</p><p>{{ result.snippet }}</p></li>
+          <li><a href="{{ result.link }}" target="_blank" rel="noreferrer">{{ result.link or result.title }}</a></li>
         {% else %}
           <li>No SERP snapshot selected yet.</li>
         {% endfor %}
       </ol>
     </div>
     <div class="panel">
-      <p class="eyebrow">Notes</p>
-      {% if can(current_user, 'manager') %}
-        <form class="note-form" action="/projects/{{ project.id }}/notes" method="post">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-          <textarea name="note" rows="3" placeholder="Add project note" required></textarea>
-          <button type="submit">Add note</button>
-        </form>
-      {% endif %}
-      <div class="notes-list">
-        {% for note in notes %}
-          <div class="note"><strong>{{ note.created_at.strftime("%d %b %Y") }}</strong><br />{{ note.note }}</div>
-        {% else %}
-          <p class="muted">No notes yet.</p>
-        {% endfor %}
-      </div>
+      <p class="eyebrow">Trend</p>
+      <h2>Project Summary Graph</h2>
+      {% include "components/history_chart.html" %}
+    </div>
+  </section>
+
+  <section class="panel notes-panel">
+    <p class="eyebrow">Notes</p>
+    {% if can(current_user, 'manager') %}
+      <form class="note-form" action="/projects/{{ project.id }}/notes" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <textarea name="note" rows="3" placeholder="Add project note" required></textarea>
+        <button type="submit">Add note</button>
+      </form>
+    {% endif %}
+    <div class="notes-list">
+      {% for note in notes %}
+        <div class="note"><strong>{{ note.created_at.strftime("%d %b %Y") }}</strong><br />{{ note.note }}</div>
+      {% else %}
+        <p class="muted">No notes yet.</p>
+      {% endfor %}
     </div>
   </section>
 {% endblock %}
