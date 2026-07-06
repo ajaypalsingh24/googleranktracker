@@ -22,7 +22,6 @@
         <a class="{{ 'active' if active_nav == 'projects' else '' }}" href="/projects">Projects</a>
         <a class="{{ 'active' if active_nav == 'keywords' else '' }}" href="/keywords">Keywords</a>
         <a class="{{ 'active' if active_nav == 'reports' else '' }}" href="/reports">Reports</a>
-        <a class="{{ 'active' if active_nav == 'competitors' else '' }}" href="/competitors">Competitors</a>
         <a class="{{ 'active' if active_nav == 'settings' else '' }}" href="/settings">Settings</a>
         {% if can(current_user, 'admin') %}
           <a class="{{ 'active' if active_nav == 'users' else '' }}" href="/users">Users</a>
