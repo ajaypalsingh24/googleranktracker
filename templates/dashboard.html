@@ -11,6 +11,61 @@
     {% endif %}
   </section>
 
+  <section class="dashboard-stats" aria-label="Account summary">
+    <article>
+      <span>Projects</span>
+      <strong>{{ totals.project_count }}</strong>
+      <small>{{ totals.active_keyword_count }} active keywords</small>
+    </article>
+    <article>
+      <span>Average Position</span>
+      <strong>{{ totals.average_position or "-" }}</strong>
+      <small>{{ totals.checked_count }} checked</small>
+    </article>
+    <article>
+      <span>Top 3</span>
+      <strong>{{ totals.top3_count }}</strong>
+      <small>{{ totals.top10_count }} in Top 10</small>
+    </article>
+    <article>
+      <span>Top 20</span>
+      <strong>{{ totals.top20_count }}</strong>
+      <small>{{ totals.outside_top20_count }} outside Top 20</small>
+    </article>
+    <article>
+      <span>Needs Check</span>
+      <strong>{{ totals.unchecked_count }}</strong>
+      <small>{{ totals.latest_checked_at.strftime("%d %b, %I:%M %p") if totals.latest_checked_at else "No checks yet" }}</small>
+    </article>
+  </section>
+
+  {% if project %}
+    <section class="dashboard-focus">
+      <div>
+        <p class="eyebrow">Selected project</p>
+        <h2>{{ project.name }}</h2>
+        <p>{{ project.domain }} &middot; {{ project.country or project.location }} &middot; {{ project.check_frequency }}</p>
+      </div>
+      <div class="focus-metrics">
+        <span><strong>{{ project.average_position or "-" }}</strong> Average</span>
+        <span><strong>{{ project.top3_count }}</strong> Top 3</span>
+        <span><strong>{{ project.top10_count }}</strong> Top 10</span>
+        <span><strong>{{ project.top20_count }}</strong> Top 20</span>
+        <span><strong>{{ project.unchecked_count }}</strong> Not checked</span>
+      </div>
+      <div class="focus-actions">
+        <a class="button-link ghost" href="/projects/{{ project.id }}">Open project</a>
+        <a class="button-link ghost" href="/reports?project_id={{ project.id }}">Report</a>
+        {% if can(current_user, 'manager') %}
+          <form class="loading-form" action="/projects/{{ project.id }}/check-all" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <button type="submit">Check all</button>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+  {% endif %}
+
   <section class="project-board">
     <div class="project-board-tools">
       <form class="serp-filter" action="/" method="get">
@@ -50,7 +105,8 @@
               </td>
               <td>
                 <strong class="hot">{{ item.keyword_count }}</strong>
-                <span>( <span class="good">{{ item.top3_count }}</span> / {{ item.top10_count }} / <span class="bad">{{ item.not_found_count }}</span> )</span>
+                <span>( <span class="good">{{ item.top3_count }}</span> / {{ item.top10_count }} / {{ item.top20_count }} / <span class="bad">{{ item.unchecked_count }}</span> )</span>
+                <small>Top 3 / Top 10 / Top 20 / Not checked</small>
               </td>
               <td>{{ item.check_frequency }}</td>
               <td>{{ item.latest_checked_at.strftime("%Y-%m-%d %H:%M") if item.latest_checked_at else item.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>

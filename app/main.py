@@ -157,6 +157,7 @@ def dashboard(request: Request, project_id: str | None = None, message: str | No
         return user
     projects = project_cards()
     current_project = select_project(projects, project_id)
+    totals = dashboard_totals(projects)
     metrics = empty_metrics()
     history = []
     keywords = []
@@ -171,6 +172,7 @@ def dashboard(request: Request, project_id: str | None = None, message: str | No
         {
             "active_nav": "dashboard",
             "projects": projects,
+            "totals": totals,
             "project": current_project,
             "metrics": metrics,
             "history": history,
@@ -652,10 +654,15 @@ def project_cards() -> list[dict[str, Any]]:
         select p.*,
           count(k.id)::int as keyword_count,
           count(k.id) filter (where k.active)::int as active_keyword_count,
+          count(k.id) filter (where latest.checked_at is not null)::int as checked_count,
+          count(k.id) filter (where latest.checked_at is null)::int as unchecked_count,
+          count(k.id) filter (where latest.position is not null)::int as positioned_count,
           round(avg(latest.position)::numeric, 2)::float as average_position,
           count(k.id) filter (where latest.position <= 3)::int as top3_count,
           count(k.id) filter (where latest.position <= 10)::int as top10_count,
-          count(k.id) filter (where latest.position is null)::int as not_found_count,
+          count(k.id) filter (where latest.position <= 20)::int as top20_count,
+          count(k.id) filter (where latest.checked_at is not null and latest.position is null)::int as not_found_count,
+          count(k.id) filter (where latest.checked_at is not null and (latest.position is null or latest.position > 20))::int as outside_top20_count,
           max(latest.checked_at) as latest_checked_at
         from projects p
         left join keywords k on k.project_id = p.id
@@ -666,6 +673,26 @@ def project_cards() -> list[dict[str, Any]]:
         order by p.created_at desc
         """
     )
+
+
+def dashboard_totals(projects: list[dict[str, Any]]) -> dict[str, Any]:
+    positioned_count = sum(project["positioned_count"] or 0 for project in projects)
+    weighted_position = sum((project["average_position"] or 0) * (project["positioned_count"] or 0) for project in projects)
+    latest_checked_at = max((project["latest_checked_at"] for project in projects if project["latest_checked_at"]), default=None)
+    return {
+        "project_count": len(projects),
+        "keyword_count": sum(project["keyword_count"] or 0 for project in projects),
+        "active_keyword_count": sum(project["active_keyword_count"] or 0 for project in projects),
+        "checked_count": sum(project["checked_count"] or 0 for project in projects),
+        "unchecked_count": sum(project["unchecked_count"] or 0 for project in projects),
+        "average_position": round(weighted_position / positioned_count, 2) if positioned_count else None,
+        "top3_count": sum(project["top3_count"] or 0 for project in projects),
+        "top10_count": sum(project["top10_count"] or 0 for project in projects),
+        "top20_count": sum(project["top20_count"] or 0 for project in projects),
+        "outside_top20_count": sum(project["outside_top20_count"] or 0 for project in projects),
+        "not_found_count": sum(project["not_found_count"] or 0 for project in projects),
+        "latest_checked_at": latest_checked_at,
+    }
 
 
 def select_project(projects: list[dict[str, Any]], project_id: str | None) -> dict[str, Any] | None:

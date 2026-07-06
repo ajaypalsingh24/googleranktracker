@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Google Rank Tracker{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}?v=20260706-4" />
-    <script defer src="{{ url_for('static', path='/app.js') }}?v=20260706-4"></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}?v=20260706-5" />
+    <script defer src="{{ url_for('static', path='/app.js') }}?v=20260706-5"></script>
   </head>
   <body data-theme="{{ request.session.get('theme', 'dark') if request else 'dark' }}">
     {% block body %}{% endblock %}

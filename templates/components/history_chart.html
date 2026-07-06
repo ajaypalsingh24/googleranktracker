@@ -4,6 +4,9 @@
       <div class="bar" style="height: {{ 8 if (100 - point.average_position) < 8 else (100 - point.average_position) }}%" title="{{ point.day.strftime('%d %b %Y') }}: {{ point.average_position }}"></div>
     {% endfor %}
   {% else %}
-    <p>Run ranking checks to build trend history.</p>
+    <div class="chart-empty-state">
+      <strong>No trend data yet</strong>
+      <span>Run keyword checks over time to build this graph.</span>
+    </div>
   {% endif %}
 </div>
