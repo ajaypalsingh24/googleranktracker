@@ -278,6 +278,11 @@ label { display: grid; gap: 7px; color: #344054; font-size: 13px; font-weight: 8
   gap: 8px;
 }
 
+.field-group[hidden],
+.local-only[hidden] {
+  display: none !important;
+}
+
 .field-group > label {
   color: var(--ink);
   font-size: 18px;
