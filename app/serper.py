@@ -44,7 +44,7 @@ def check_keyword_rank(keyword: dict) -> dict:
         "q": keyword["phrase"],
         "gl": keyword["gl"],
         "hl": keyword["hl"],
-        "location": keyword["location"],
+        "location": keyword.get("search_location") or keyword["location"],
         "num": 100,
     }
     response = httpx.post(

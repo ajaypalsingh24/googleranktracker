@@ -16,8 +16,10 @@
         <div><dt>Language:</dt><dd>{{ project.hl }}</dd></div>
         <div><dt>Country:</dt><dd>{{ project.country or "Auto" }}</dd></div>
         <div><dt>Location:</dt><dd>{{ project.location }}</dd></div>
+        {% if project.search_location %}
+          <div><dt>Search Location:</dt><dd>{{ project.search_location }}</dd></div>
+        {% endif %}
         {% if project.project_type == "local" %}
-          <div><dt>Search Location:</dt><dd>{{ project.search_location or project.location }}</dd></div>
           <div><dt>Local Business:</dt><dd>{{ project.local_business_name or "Add exact GBP name" }}</dd></div>
         {% endif %}
         <div><dt>Device:</dt><dd>{{ project.device|capitalize }}</dd></div>
