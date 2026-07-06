@@ -13,7 +13,7 @@
 
   <section class="dashboard-stats" aria-label="Account summary">
     <article>
-      <span>Projects</span>
+      <span>All Projects</span>
       <strong>{{ totals.project_count }}</strong>
       <small>{{ totals.active_keyword_count }} active keywords</small>
     </article>
@@ -25,7 +25,7 @@
     <article>
       <span>Top 3</span>
       <strong>{{ totals.top3_count }}</strong>
-      <small>{{ totals.top10_count }} in Top 10</small>
+      <small>{{ totals.top10_count }} keywords in Top 10</small>
     </article>
     <article>
       <span>Top 20</span>
@@ -35,36 +35,9 @@
     <article>
       <span>Needs Check</span>
       <strong>{{ totals.unchecked_count }}</strong>
-      <small>{{ totals.latest_checked_at.strftime("%d %b, %I:%M %p") if totals.latest_checked_at else "No checks yet" }}</small>
+      <small>Last check: {{ totals.latest_checked_at.strftime("%d %b, %I:%M %p") if totals.latest_checked_at else "No checks yet" }}</small>
     </article>
   </section>
-
-  {% if project %}
-    <section class="dashboard-focus">
-      <div>
-        <p class="eyebrow">Selected project</p>
-        <h2>{{ project.name }}</h2>
-        <p>{{ project.domain }} &middot; {{ project.country or project.location }} &middot; {{ project.check_frequency }}</p>
-      </div>
-      <div class="focus-metrics">
-        <span><strong>{{ project.average_position or "-" }}</strong> Average</span>
-        <span><strong>{{ project.top3_count }}</strong> Top 3</span>
-        <span><strong>{{ project.top10_count }}</strong> Top 10</span>
-        <span><strong>{{ project.top20_count }}</strong> Top 20</span>
-        <span><strong>{{ project.unchecked_count }}</strong> Not checked</span>
-      </div>
-      <div class="focus-actions">
-        <a class="button-link ghost" href="/projects/{{ project.id }}">Open project</a>
-        <a class="button-link ghost" href="/reports?project_id={{ project.id }}">Report</a>
-        {% if can(current_user, 'manager') %}
-          <form class="loading-form" action="/projects/{{ project.id }}/check-all" method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-            <button type="submit">Check all</button>
-          </form>
-        {% endif %}
-      </div>
-    </section>
-  {% endif %}
 
   <section class="project-board">
     <div class="project-board-tools">

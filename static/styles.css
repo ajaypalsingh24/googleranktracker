@@ -615,61 +615,6 @@ body {
   font-size: 13px;
 }
 
-.dashboard-focus {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(420px, 1.2fr) auto;
-  gap: 18px;
-  align-items: center;
-  margin-bottom: 18px;
-  padding: 18px;
-  background: rgba(255,255,255,.96);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.dashboard-focus h2 {
-  margin: 0 0 5px;
-  font-size: 28px;
-}
-
-.dashboard-focus p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.focus-metrics {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(80px, 1fr));
-  gap: 8px;
-}
-
-.focus-metrics span {
-  display: grid;
-  gap: 2px;
-  min-height: 72px;
-  align-content: center;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fbfd;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.focus-metrics strong {
-  color: var(--ink);
-  font-size: 24px;
-}
-
-.focus-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .project-board {
   padding: 0 0 24px;
 }
@@ -959,7 +904,6 @@ td small {
 @media (max-width: 1100px) {
   .auth-screen,
   .project-detail-header,
-  .dashboard-focus,
   .serp-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -979,22 +923,13 @@ td small {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
 
-  .focus-metrics {
-    grid-template-columns: repeat(2, minmax(110px, 1fr));
-  }
-
-  .focus-actions {
-    justify-content: flex-start;
-  }
-
   .project-action-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
-  .dashboard-stats,
-  .focus-metrics {
+  .dashboard-stats {
     grid-template-columns: 1fr;
   }
 }
