@@ -3,7 +3,9 @@
 {% block body %}
   <main class="auth-screen">
     <section class="auth-story">
-      <p class="auth-kicker">opositive.io</p>
+      <div class="auth-brand-lockup">
+        <img src="{{ url_for('static', path='/opositive-logo.png') }}" alt="opositive.io" />
+      </div>
       <h1>Rank intelligence for every search project.</h1>
       <p>Track Google visibility, monitor competitors, and keep keyword reporting in one clean workspace.</p>
       <ul>
@@ -13,6 +15,11 @@
     </section>
 
     <section class="auth-card">
+      <div class="auth-logo-stage" aria-hidden="true">
+        <span class="logo-orbit logo-orbit-one"></span>
+        <span class="logo-orbit logo-orbit-two"></span>
+        <img src="{{ url_for('static', path='/opositive-logo.png') }}" alt="" />
+      </div>
       <div class="auth-tabs" role="tablist">
         <button class="auth-tab active" type="button" data-auth-tab="login">Login</button>
         <button class="auth-tab" type="button" data-auth-tab="register">Register</button>
