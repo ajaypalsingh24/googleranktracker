@@ -703,15 +703,30 @@ td small {
   font-weight: 500;
 }
 
+.last-check-filter {
+  width: min(760px, 100%);
+  margin: 20px auto 18px;
+}
+
+.last-check-filter select {
+  min-height: 72px;
+  border-radius: 0 0 8px 8px;
+  border-color: var(--line);
+  background: #fff;
+  color: #344054;
+  font-size: 32px;
+  padding: 8px 22px;
+}
+
 .metric-grid {
-  grid-template-columns: repeat(4, minmax(190px, 1fr));
-  gap: 44px;
+  grid-template-columns: repeat(7, minmax(150px, 1fr));
+  gap: 12px;
 }
 
 .metric-grid article {
   padding: 0;
   overflow: hidden;
-  min-height: 170px;
+  min-height: 150px;
   text-align: center;
 }
 
@@ -719,18 +734,18 @@ td small {
   display: block;
   background: #dff3fb;
   color: #22627b;
-  padding: 16px;
-  font-size: 20px;
+  padding: 13px 8px;
+  font-size: 17px;
 }
 
 .metric-grid article strong {
-  font-size: 58px;
+  font-size: 48px;
   color: var(--accent);
-  margin: 34px 0 4px;
+  margin: 28px 0 4px;
 }
 
 .metric-grid article small {
-  font-size: 18px;
+  font-size: 16px;
   color: #111827;
 }
 

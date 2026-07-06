@@ -47,7 +47,19 @@
   </section>
 
   <section class="last-check-panel">
-    <h2>Last Check</h2>
+    <form class="last-check-filter" action="/projects/{{ project.id }}" method="get">
+      <input type="hidden" name="q" value="{{ q }}" />
+      <select name="check_range" onchange="this.form.submit()">
+        <option value="last_check" {{ 'selected' if check_range == 'last_check' else '' }}>Last Check</option>
+        <option value="last_24_hours" {{ 'selected' if check_range == 'last_24_hours' else '' }}>Last 24 Hours</option>
+        <option value="last_7_days" {{ 'selected' if check_range == 'last_7_days' else '' }}>Last 7 days</option>
+        <option value="last_30_days" {{ 'selected' if check_range == 'last_30_days' else '' }}>Last 30 days</option>
+        <option value="last_60_days" {{ 'selected' if check_range == 'last_60_days' else '' }}>Last 60 days</option>
+        <option value="last_3_months" {{ 'selected' if check_range == 'last_3_months' else '' }}>Last 3 months</option>
+        <option value="last_6_months" {{ 'selected' if check_range == 'last_6_months' else '' }}>Last 6 months</option>
+        <option value="last_12_months" {{ 'selected' if check_range == 'last_12_months' else '' }}>Last 12 months</option>
+      </select>
+    </form>
     {% include "components/metric_cards.html" %}
   </section>
 

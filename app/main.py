@@ -4,7 +4,7 @@ import csv
 import math
 import os
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -245,12 +245,13 @@ def project_detail(
     q: str = "",
     page: int = 1,
     per_page: int = 25,
+    check_range: str = "last_check",
     serp_check_id: str | None = None,
     message: str | None = None,
 ):
     page = max(page, 1)
     per_page = min(max(per_page, 10), 100)
-    detail = load_project_dashboard(project_id, q=q, page=page, per_page=per_page, serp_check_id=serp_check_id)
+    detail = load_project_dashboard(project_id, q=q, page=page, per_page=per_page, check_range=check_range, serp_check_id=serp_check_id)
     if not detail["project"]:
         raise HTTPException(status_code=404, detail="Project not found")
     return render(
@@ -262,6 +263,7 @@ def project_detail(
             "q": q,
             "page": page,
             "per_page": per_page,
+            "check_range": check_range,
             **detail,
         },
     )
@@ -691,10 +693,12 @@ def load_project_dashboard(
     page: int = 1,
     per_page: int = 25,
     limit: int | None = None,
+    check_range: str = "last_check",
     serp_check_id: str | None = None,
 ) -> dict[str, Any]:
     project = db.fetch_one("select * from projects where id = %s", (project_id,))
     pattern = f"%{q.strip()}%"
+    cutoff = range_cutoff(check_range)
     total = db.fetch_one(
         """
         select count(*)::int as count
@@ -705,8 +709,8 @@ def load_project_dashboard(
     )["count"]
     fetch_limit = limit or per_page
     offset = 0 if limit else (page - 1) * per_page
-    keywords = db.fetch_all(keyword_summary_sql() + " limit %s offset %s", (project_id, q.strip(), pattern, fetch_limit, offset))
-    all_keywords = db.fetch_all(keyword_summary_sql(), (project_id, "", "%%"))
+    keywords = db.fetch_all(keyword_summary_sql() + " limit %s offset %s", (cutoff, cutoff, project_id, q.strip(), pattern, fetch_limit, offset))
+    all_keywords = db.fetch_all(keyword_summary_sql(), (cutoff, cutoff, project_id, "", "%%"))
     history = project_history(project_id, None, None)
     notes = db.fetch_all("select * from project_notes where project_id = %s order by created_at desc limit 20", (project_id,))
     serp_results = []
@@ -742,6 +746,7 @@ def keyword_summary_sql() -> str:
       select distinct on (keyword_id)
         keyword_id, id as check_id, position, previous_position, change, matched_url, result_count, checked_at
       from rank_checks
+      where (%s::timestamptz is null or checked_at >= %s::timestamptz)
       order by keyword_id, checked_at desc
     ),
     bests as (
@@ -839,9 +844,8 @@ def empty_metrics() -> dict[str, Any]:
         "declined": 0,
         "top3": 0,
         "top10": 0,
-        "top30": 0,
-        "top100": 0,
-        "not_found": 0,
+        "top20": 0,
+        "outside_top20": 0,
     }
 
 
@@ -856,7 +860,22 @@ def build_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     metrics["declined"] = len([row for row in active if row["change"] and row["change"] < 0])
     metrics["top3"] = len([position for position in positions if position <= 3])
     metrics["top10"] = len([position for position in positions if position <= 10])
-    metrics["top30"] = len([position for position in positions if position <= 30])
-    metrics["top100"] = len([position for position in positions if position <= 100])
-    metrics["not_found"] = len(active) - len(positions)
+    metrics["top20"] = len([position for position in positions if position <= 20])
+    metrics["outside_top20"] = len([row for row in active if not isinstance(row["position"], int) or row["position"] > 20])
     return metrics
+
+
+def range_cutoff(check_range: str) -> datetime | None:
+    ranges = {
+        "last_24_hours": timedelta(hours=24),
+        "last_7_days": timedelta(days=7),
+        "last_30_days": timedelta(days=30),
+        "last_60_days": timedelta(days=60),
+        "last_3_months": timedelta(days=90),
+        "last_6_months": timedelta(days=180),
+        "last_12_months": timedelta(days=365),
+    }
+    delta = ranges.get(check_range)
+    if not delta:
+        return None
+    return datetime.now(timezone.utc) - delta
