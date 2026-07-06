@@ -551,6 +551,11 @@ body {
   border-color: var(--accent);
 }
 
+.theme-form select option {
+  background: #ffffff;
+  color: #111827;
+}
+
 .topbar {
   background: #bdeff4;
 }
