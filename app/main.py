@@ -407,41 +407,11 @@ def check_all_keywords(request: Request, project_id: str, csrf_token_value: str 
 
 
 @app.get("/keywords", response_class=HTMLResponse)
-def keywords_page(request: Request, q: str = "", page: int = 1):
-    page = max(page, 1)
-    per_page = 50
-    pattern = f"%{q.strip()}%"
-    total = db.fetch_one(
-        """
-        select count(*)::int as count
-        from keywords k
-        join projects p on p.id = k.project_id
-        where %s = '' or k.phrase ilike %s or p.name ilike %s or p.domain ilike %s
-        """,
-        (q.strip(), pattern, pattern, pattern),
-    )["count"]
-    rows = db.fetch_all(
-        """
-        with latest as (
-          select distinct on (keyword_id) keyword_id, position, change, matched_url, checked_at
-          from rank_checks
-          order by keyword_id, checked_at desc
-        )
-        select k.*, p.name as project_name, p.domain, latest.position, latest.change, latest.matched_url, latest.checked_at
-        from keywords k
-        join projects p on p.id = k.project_id
-        left join latest on latest.keyword_id = k.id
-        where %s = '' or k.phrase ilike %s or p.name ilike %s or p.domain ilike %s
-        order by k.created_at desc
-        limit %s offset %s
-        """,
-        (q.strip(), pattern, pattern, pattern, per_page, (page - 1) * per_page),
-    )
-    return render(
-        request,
-        "keywords.html",
-        {"active_nav": "keywords", "keywords": rows, "q": q, "page": page, "pages": max(math.ceil(total / per_page), 1)},
-    )
+def keywords_page(request: Request):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+    return RedirectResponse("/", status_code=303)
 
 
 @app.get("/reports", response_class=HTMLResponse)
