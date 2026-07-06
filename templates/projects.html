@@ -29,11 +29,9 @@
         <div class="field-group full">
           <label>Google region</label>
           <select name="gl">
-            <option value="us">Global / US (www.google.com)</option>
-            <option value="in" selected>India (www.google.co.in)</option>
-            <option value="gb">United Kingdom (www.google.co.uk)</option>
-            <option value="ca">Canada (www.google.ca)</option>
-            <option value="au">Australia (www.google.com.au)</option>
+            {% for region in google_regions %}
+              <option value="{{ region.code }}" {{ 'selected' if region.code == 'in' else '' }}>{{ region.label }}</option>
+            {% endfor %}
           </select>
         </div>
 

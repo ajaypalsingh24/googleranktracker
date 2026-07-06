@@ -83,7 +83,11 @@
         <label>Location<input name="location" value="{{ project.location }}" /></label>
         <label>Local Search Location<input name="search_location" value="{{ project.search_location }}" placeholder="Koramangala Bengaluru" /></label>
         <label>Local Business Name<input name="local_business_name" value="{{ project.local_business_name }}" placeholder="Exact Google Business Profile name" /></label>
-        <label>Google Country<input name="gl" value="{{ project.gl }}" maxlength="2" /></label>
+        <label>Google region<select name="gl">
+          {% for region in google_regions %}
+            <option value="{{ region.code }}" {{ 'selected' if project.gl == region.code else '' }}>{{ region.label }}</option>
+          {% endfor %}
+        </select></label>
         <label>Language<input name="hl" value="{{ project.hl }}" maxlength="5" /></label>
         <label>Device<select name="device"><option {{ 'selected' if project.device == 'desktop' else '' }}>desktop</option><option {{ 'selected' if project.device == 'mobile' else '' }}>mobile</option></select></label>
         <label>Frequency<select name="check_frequency"><option {{ 'selected' if project.check_frequency == 'manual' else '' }}>manual</option><option {{ 'selected' if project.check_frequency == 'daily' else '' }}>daily</option><option {{ 'selected' if project.check_frequency == 'weekly' else '' }}>weekly</option></select></label>

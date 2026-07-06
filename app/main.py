@@ -39,6 +39,30 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 templates.env.globals["can"] = can
+templates.env.globals["google_regions"] = [
+    {"code": "us", "label": "Global / US (www.google.com)"},
+    {"code": "in", "label": "India (www.google.co.in)"},
+    {"code": "gb", "label": "United Kingdom (www.google.co.uk)"},
+    {"code": "ca", "label": "Canada (www.google.ca)"},
+    {"code": "au", "label": "Australia (www.google.com.au)"},
+    {"code": "ae", "label": "United Arab Emirates (www.google.ae)"},
+    {"code": "sg", "label": "Singapore (www.google.com.sg)"},
+    {"code": "my", "label": "Malaysia (www.google.com.my)"},
+    {"code": "id", "label": "Indonesia (www.google.co.id)"},
+    {"code": "ph", "label": "Philippines (www.google.com.ph)"},
+    {"code": "th", "label": "Thailand (www.google.co.th)"},
+    {"code": "vn", "label": "Vietnam (www.google.com.vn)"},
+    {"code": "jp", "label": "Japan (www.google.co.jp)"},
+    {"code": "kr", "label": "South Korea (www.google.co.kr)"},
+    {"code": "de", "label": "Germany (www.google.de)"},
+    {"code": "fr", "label": "France (www.google.fr)"},
+    {"code": "es", "label": "Spain (www.google.es)"},
+    {"code": "it", "label": "Italy (www.google.it)"},
+    {"code": "nl", "label": "Netherlands (www.google.nl)"},
+    {"code": "br", "label": "Brazil (www.google.com.br)"},
+    {"code": "mx", "label": "Mexico (www.google.com.mx)"},
+    {"code": "za", "label": "South Africa (www.google.co.za)"},
+]
 
 
 @asynccontextmanager
