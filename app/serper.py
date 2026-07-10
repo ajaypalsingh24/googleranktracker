@@ -45,6 +45,7 @@ def check_keyword_rank(keyword: dict) -> dict:
         "gl": keyword["gl"],
         "hl": keyword["hl"],
         "location": keyword.get("search_location") or keyword["location"],
+        "device": serper_device(keyword.get("device")),
         "num": 100,
     }
     response = httpx.post(
@@ -84,6 +85,7 @@ def check_local_rank(keyword: dict, api_key: str) -> dict:
         "gl": keyword["gl"],
         "hl": keyword["hl"],
         "location": keyword.get("search_location") or keyword["location"],
+        "device": serper_device(keyword.get("device")),
         "num": 20,
     }
     response = httpx.post(
@@ -122,6 +124,10 @@ def normalize_place(item: dict, index: int) -> dict:
         "display_link": item.get("category") or item.get("type") or "Google Local",
         "snippet": details,
     }
+
+
+def serper_device(value: str | None) -> str:
+    return "mobile" if value == "mobile" else "desktop"
 
 
 def matches_local_result(item: dict, keyword: dict) -> bool:
