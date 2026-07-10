@@ -5,13 +5,6 @@
     <div><p class="eyebrow">Workspace</p><h1>Projects</h1></div>
   </section>
 
-  <section class="panel">
-    <form class="search-row" action="/projects" method="get">
-      <input name="q" value="{{ q }}" placeholder="Search projects or domains" />
-      <button class="ghost" type="submit">Search</button>
-    </form>
-  </section>
-
   {% if can(current_user, 'manager') %}
     <section class="panel new-project-panel">
       <div class="panel-head"><div><p class="eyebrow">Add project</p><h2>Enter the details for your new project</h2></div></div>
