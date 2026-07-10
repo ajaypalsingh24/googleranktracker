@@ -11,7 +11,7 @@
       <form class="project-form serprobot-project-form" action="/projects" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
         <input class="full project-title-input" name="name" placeholder="Project Name" required />
-        <input class="full" name="domain" placeholder="your-domain.com" required />
+        <input class="full domain-input" name="domain" placeholder="your-domain.com" required />
 
         <div class="field-group full">
           <label>Keywords</label>
@@ -77,7 +77,7 @@
           </div>
         </details>
 
-        <button type="submit">Add project</button>
+        <button class="primary-submit" type="submit">Add project</button>
       </form>
     </section>
   {% endif %}
@@ -85,8 +85,9 @@
   <section class="project-card-grid wide">
     {% for item in projects %}
       <a class="project-card" href="/projects/{{ item.id }}">
-        <span>{{ item.domain }}</span>
+        <span>{{ "Google Local" if item.project_type == "local" else "Google" }}</span>
         <strong>{{ item.name }}</strong>
+        <small>{{ item.domain }}</small>
         <small>{{ item.country }} - {{ item.active_keyword_count }} active keywords</small>
         <b>{{ item.keyword_count }}</b>
       </a>

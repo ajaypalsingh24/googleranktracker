@@ -28,7 +28,7 @@
             <th>Project Name</th>
             <th>URL</th>
             <th>Region</th>
-            <th>#Keywords</th>
+            <th>Keywords</th>
             <th>Frequency</th>
             <th>Updated</th>
             <th>Actions</th>
@@ -41,7 +41,7 @@
               <td>{{ loop.index }}</td>
               <td>
                 <a class="table-project-link" href="/projects/{{ item.id }}">{{ item.name }}</a>
-                <span class="project-badges">▯ ◉</span>
+                <span class="type-pill">{{ "Google Local" if item.project_type == "local" else "Google" }}</span>
               </td>
               <td>{{ item.domain }}</td>
               <td>
@@ -49,7 +49,7 @@
                 <small>{{ item.location }} (google.{{ item.gl }})</small>
               </td>
               <td>
-                <strong class="hot">{{ item.keyword_count }}</strong>
+                <strong class="keyword-total">{{ item.keyword_count }}</strong>
                 <span>( <span class="good">{{ item.top3_count }}</span> / {{ item.top10_count }} / {{ item.top20_count }} / <span class="bad">{{ item.unchecked_count }}</span> )</span>
                 <small>Top 3 / Top 10 / Top 20 / Not checked</small>
               </td>
@@ -60,10 +60,10 @@
                   {% if can(current_user, 'manager') %}
                     <form class="loading-form" action="/projects/{{ item.id }}/check-all" method="post">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
-                      <button title="Refresh rankings" type="submit">⟳</button>
+                      <button class="table-action-link secondary" title="Refresh rankings" type="submit">Check</button>
                     </form>
                   {% endif %}
-                  <a title="Open project" href="/projects/{{ item.id }}">↗</a>
+                  <a class="table-action-link" title="Open project" href="/projects/{{ item.id }}">Open</a>
                 </div>
               </td>
             </tr>

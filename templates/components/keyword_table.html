@@ -61,17 +61,17 @@
                 <form class="loading-form" action="/keywords/{{ keyword.id }}/check" method="post">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
                   <input type="hidden" name="project_id" value="{{ project.id }}" />
-                  <button type="submit">Check</button>
+                  <button class="table-action-link" type="submit">Check</button>
                 </form>
               {% endif %}
               {% if keyword.check_id %}
-                <a title="View SERP" href="/projects/{{ project.id }}?serp_check_id={{ keyword.check_id }}">⌕</a>
+                <a class="table-action-link secondary" title="View SERP" href="/projects/{{ project.id }}?serp_check_id={{ keyword.check_id }}">SERP</a>
               {% endif %}
               {% if can(current_user, 'manager') %}
                 <form action="/keywords/{{ keyword.id }}/delete" method="post">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
                   <input type="hidden" name="project_id" value="{{ project.id }}" />
-                  <button class="danger-btn" title="Delete" type="submit">⌫</button>
+                  <button class="table-action-link danger-btn" title="Delete" type="submit">Delete</button>
                 </form>
               {% endif %}
             </div>
