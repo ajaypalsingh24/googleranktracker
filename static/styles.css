@@ -1133,6 +1133,7 @@ td small {
   color: var(--accent-strong);
 }
 
+.icon-actions .danger-btn.table-action-link,
 .row-actions .danger-btn.table-action-link {
   background: #fff1ef;
   border-color: #ffd6d0;
@@ -1222,6 +1223,12 @@ td small {
 .project-action-grid .button-link,
 .project-action-grid button {
   border-radius: 7px;
+}
+
+.project-action-grid button.danger-btn {
+  background: #fff1ef;
+  border-color: #ffd6d0;
+  color: var(--accent-strong);
 }
 
 .keyword-toolbar {

@@ -51,6 +51,10 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
           <button class="ghost" type="submit">Refresh search volumes</button>
         </form>
+        <form action="/projects/{{ project.id }}/delete" method="post" onsubmit="return confirm('Delete this project and all of its keywords/history?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+          <button class="ghost danger-btn" type="submit">Delete project</button>
+        </form>
       {% endif %}
       <a class="button-link ghost" href="/">Back to dashboard</a>
     </div>

@@ -364,6 +364,18 @@ def edit_project(
     return redirect_to(f"/projects/{project_id}", message="Project updated")
 
 
+@app.post("/projects/{project_id}/delete")
+def delete_project(request: Request, project_id: str, csrf_token_value: str = Form(..., alias="csrf_token")):
+    user = require_user(request, "manager")
+    if isinstance(user, RedirectResponse):
+        return user
+    verify_csrf(request, csrf_token_value)
+    project = db.execute("delete from projects where id = %s returning name", (project_id,))
+    if not project:
+        return redirect_to("/", message="Project not found")
+    return redirect_to("/", message=f"Deleted project: {project['name']}")
+
+
 @app.post("/projects/{project_id}/keywords")
 def create_keyword(
     request: Request,
